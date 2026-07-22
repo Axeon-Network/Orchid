@@ -1,8 +1,3 @@
-const { SlashCommandBuilder, version } = require("discord.js");
-const Enmap = require('enmap');
-const bot = require("../config/config.json");
-const core = require("../config/core.json");
-
 const meta = {
   name: "about",
   description: "Get to know more about me!",
@@ -10,49 +5,39 @@ const meta = {
 };
 exports.meta = meta;
 
+const { SlashCommandBuilder } = require("discord.js");
+const bot = require("../config/config.json");
+const core = require("../config/core.json");
+const { MAJOR, MINOR } = require("../components/version.json");
+
 exports.data = new SlashCommandBuilder()
   .setName(meta.name)
   .setDescription(meta.description);
 
 exports.execute = async (client, context) => {
-    client.config = bot;
-    const guildConf = client.settings.get(context.guild.id);
+    const devStage = core.devStage;
+    const devStageLabel = devStage ? `(${core.devStage})` : '';
 
-    const devStage = core.dev_stage;
-    const devStageLabel = devStage ? `(${core.dev_stage})` : '';
-
-    function format(seconds){
-      function pad(s){
-        return (s < 10 ? '0' : '') + s;
-      }
-      var hours = Math.floor(seconds / (60*60));
-      var minutes = Math.floor(seconds % (60*60) / 60);
-      var seconds = Math.floor(seconds % 60);
-    
-      return pad(hours) + 'h ' + pad(minutes) + 'm ' + pad(seconds) + 's';
-    }
-    var uptime = process.uptime();
+    const isDebug = bot.debug_mode;
+    const label = isDebug ? "Checked" : "Retail";
 
       context.reply({embeds: [{
           color: color,
           author: {
-          		name: `About ${client.user.username} ${devStageLabel}`,
+          		name: `About ` + client.user.username,
 	          	icon_url: client.user.displayAvatarURL(),
           	},
+          description: `**${core.name}**, version v${MAJOR}.${MINOR} ${devStageLabel} (${label})\n` +
+                       `(C) 2026 Axeon Network. All Rights Reserved.`,
           fields: [
             {
-              name: "Links",
-              value: "**Source Code:** [github.com/Axeon-Network/orchid](https://github.com/Axeon-Network/orchid)\n**More from the Axeon Network:** [axeon-network.github.io](https://axeon-network.github.io)",
+              name: "🔗 Links",
+              value: "**Source Code:** [github.com/Axeon-Network/Orchid](https://github.com/Axeon-Network/Orchid)\n**More from the Axeon Network:** [axeon-network.github.io](https://axeon-network.github.io)",
               inline: true
-            },
-              {
-                name: "Versions",
-                value: `**Orchid Engine:** v${core.version} *(Build ${core.build})*\n**Discord.js:** v${version}\n**Node.js:** ${process.version}`,
-                inline: true
-              },
+            }
           ],
           footer: {
-            text: `Made with <3 by AveryEclipse - Uptime: ${format(uptime)}`
+            text: `Made with <3 by AveryEclipse`
           }
           }]
       });

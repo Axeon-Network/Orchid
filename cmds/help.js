@@ -1,8 +1,3 @@
-const { PermissionsBitField, EmbedBuilder } = require("discord.js");
-const Enmap = require('enmap');
-const bot = require("../config/config.json");
-const core = require("../config/core.json");
-
 const meta = {
   name: "help",
   description: "Display list of commands",
@@ -10,12 +5,15 @@ const meta = {
 };
 exports.meta = meta;
 
-exports.execute = async (client, context, args) => {
-  client.config = bot;
-  const guildConf = client.settings.get(context.guild.id);
+const { EmbedBuilder, PermissionFlagsBits } = require("discord.js");
+const bot = require("../config/config.json");
+const auth = require("../config/auth.json");
 
-  const admin = context.member?.permissions?.has(PermissionsBitField.Flags.Administrator) ?? false;
-  const owner = context.user.id === bot.ownerID;
+exports.execute = async (client, context) => {
+  const config = client.settings.get(context.guild.id);
+
+  const admin = (context.member?.permissions?.has(PermissionFlagsBits.Administrator) || context.member.permissions.has(PermissionFlagsBits.ManageGuild)) ?? false;
+  const owner = context.user.id === auth.discord_ownerID;
 
   const fields = [];
 
@@ -29,7 +27,7 @@ exports.execute = async (client, context, args) => {
 
     fields.push({
       name: meta.name,
-      value: `${meta.description}\n**Usage:** \`${guildConf.prefix}${meta.usage}\``,
+      value: `${meta.description}\n**Usage:** \`${meta.usage}\``,
       inline: true
     });
   }
@@ -37,7 +35,7 @@ exports.execute = async (client, context, args) => {
   let list = new EmbedBuilder()
     .setColor(color)
     .setTitle(`:grey_question: Help`)
-    .setDescription(`My prefix on **${context.guild.name}** is **${guildConf.prefix}** \nMy global prefix is **${bot.prefix}** \n[] = Optional arguments, <> = Required arguments`)
+    .setDescription(`My prefix on **${context.guild.name}** is **${config.prefix}** \nMy global prefix is **${bot.prefix}** \n[] = Optional arguments, <> = Required arguments`)
     .addFields(fields)
   context.user.send({embeds: [list]});
   

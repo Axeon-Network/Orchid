@@ -1,8 +1,3 @@
-const { SlashCommandBuilder } = require("discord.js");
-const Enmap = require('enmap');
-const bot = require("../config/config.json");
-const core = require("../config/core.json");
-
 const meta = {
   name: "ping",
   description: "Pings the bot",
@@ -10,14 +5,14 @@ const meta = {
 };
 exports.meta = meta;
 
+const { SlashCommandBuilder } = require("discord.js");
+const bot = require("../config/config.json");
+
 exports.data = new SlashCommandBuilder()
   .setName(meta.name)
   .setDescription(meta.description);
 
-exports.execute = async (client, context, args) => {
-    client.config = bot;
-    const guildConf = client.settings.get(context.guild.id);
-
+exports.execute = async (client, context) => {
     const start = Date.now()
     const message = await context.reply({
       embeds: [{
@@ -27,10 +22,7 @@ exports.execute = async (client, context, args) => {
       withResponse: true
     });
 
-    const edit =
-      message?.edit
-        ? (content) => message.edit(content)
-        : (content) => context.edit(content);
+    const edit = message?.edit ? (content) => message.edit(content) : (content) => context.edit(content);
 
     edit({embeds: [{
       color: color,

@@ -1,8 +1,3 @@
-const { SlashCommandBuilder } = require("discord.js");
-const Enmap = require('enmap');
-const bot = require("../config/config.json");
-const core = require("../config/core.json");
-
 const meta = {
   name: "settings",
   description: "View bot settings",
@@ -10,13 +5,14 @@ const meta = {
 };
 exports.meta = meta;
 
+const { SlashCommandBuilder } = require("discord.js");
+
 exports.data = new SlashCommandBuilder()
   .setName(meta.name)
   .setDescription(meta.description);
 
-exports.execute = async (client, context, args) => {
-    client.config = bot;
-    const guildConf = client.settings.get(context.guild.id);
+exports.execute = async (client, context) => {
+    const config = client.settings.get(context.guild.id);
 
       context.reply({embeds: [{
           color: color,
@@ -26,18 +22,28 @@ exports.execute = async (client, context, args) => {
           	},
           fields: [
             {
-              name: "Prefix",
-              value: guildConf.prefix,
+              name: "🤖 Prefix",
+              value: config.prefix,
               inline: true
             },
             {
-              name: "Global channel",
-              value: guildConf.globalChannel || "None",
+              name: "💬 Global channel",
+              value: `<#${config.globalChannel}>` || "None",
               inline: true
             },
             {
-              name: "Announcement channel",
-              value: guildConf.announcementChannel || "None",
+              name: "📣 Announcement channel",
+              value: `<#${config.announcementChannel}>` || "None",
+              inline: true
+            },
+            {
+              name: "🍯 Honeypot channel",
+              value: `<#${config.honeypotChannel}>` || "None",
+              inline: true
+            },
+            {
+              name: "🍯 Honeypot role",
+              value: `<@&${config.honeypotRole}>` || "None",
               inline: true
             },
           ],

@@ -1,41 +1,77 @@
-const fs = require("fs");
+const args = process.argv.slice(2);
 
-const { displayErr } = require('./components/errorHandler.js')
+const hasPlatformArgs =
+    args.includes("--discord") ||
+    args.includes("--stoat") ||
+    args.includes("--fluxer");
+
+const discord = hasPlatformArgs ? args.includes("--discord") : true;
+const stoat = hasPlatformArgs ? args.includes("--stoat") : true;
+const fluxer = args.includes("--fluxer");
+
+const core = require("./config/core.json");
+const bot = require("./config/config.json");
+
+if (bot.show_ascii) {
+  console.log(`                #######                 `);
+  console.log(`               #########                `);
+  console.log(`               #########                `);
+  console.log(`         ###### ####### ######          `);
+  console.log(`         ######## ### #########         `);
+  console.log(`         ##########  ##########         `);
+  console.log(`          ########   *#######:          `);
+  console.log(`                 ## ###                 `);
+  console.log(`             ###### ######              `);
+  console.log(`           ######## #########           `);
+  console.log(`          ########   ########           `);
+  console.log(`           ######   . ######            `);
+  console.log(``);
+}
 
 process.on('uncaughtException', function (err) {
   console.error('\x1b[31m[ERROR]\x1b[0m ' + err.stack);
 });
+ 
+const panther = require("./components/panther.js");
+const { MAJOR, MINOR } = require("./components/version.json");
 
-const corePath = "./config/core.json";
-const core = require(corePath);
-const bot = require("./config/config.json");
+const devStage = core.devStage;
+const devStageLabel = devStage ? `(${core.devStage})` : '';
 
-let incrementBuildNumber, displayVersion;
-try {
-  ({ incrementBuildNumber, displayVersion } = require('./components/panther.js'));
-if (bot.debug_mode) {
-  incrementBuildNumber(core, corePath)
-}
-displayVersion();
-} catch (err) {
-  console.log(core.name);
-}
+const { Client: DiscordClient, GatewayIntentBits, Partials, ActivityType, Collection } = require('discord.js');
+const { Client: StoatClient } = require("stoat.js");
 
-const { Client, GatewayIntentBits, Partials, ActivityType, Collection } = require('discord.js');
-const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent], partials: [Partials.Channel] }); 
-client.login(bot.token);
+const client = new DiscordClient({
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent
+  ], 
+  partials: [Partials.Channel] 
+}); 
+const stoatClient = new StoatClient();
 
+const login = require("./config/auth.json");
+
+if (discord) {client.login(login.discord_token)};
+if (stoat) {stoatClient.loginBot(login.stoat_token)};
+
+const fs = require("fs");
 client.commands = new Collection();
 
-const commandFiles = fs.readdirSync("./cmds")
-    .filter(file => file.endsWith(".js"));
-
+const commandFiles = fs.readdirSync("./cmds").filter(file => file.endsWith(".js"));
 for (const file of commandFiles) {
     const command = require(`./cmds/${file}`);
     client.commands.set(command.meta.name, command);
 }
 
 const Enmap = require('enmap').default;
+
+client.global = new Enmap({
+    name: "global"
+});
+if (!client.global.has("moderators")) {client.global.set("moderators", [])};
 
 client.settings = new Enmap({
   name: "settings",
@@ -46,15 +82,22 @@ client.settings = new Enmap({
     prefix: bot.prefix,
     announcementChannel: "",
     globalChannel: "",
+    honeypotChannel: "",
+    honeypotRole: "",
   }
 });
 
-client.once('ready', () => { 	
-    console.log(`\n\n\x1b[36m[INFO]\x1b[0m Connected to Discord: ${client.user.tag} (ID: ${client.user.id})`);
-    console.log(`\x1b[36m[INFO]\x1b[0m Press Ctrl+C in this terminal window to shut down.`);
+client.once('clientReady', () => { 	
+    console.log(`\x1b[36m[INFO]\x1b[0m Connected to Discord: ${client.user.tag} (ID: ${client.user.id})`);
     client.user.setStatus(bot.indicator || `online`);
-    client.user.setActivity(bot.status || `${bot.prefix}help for commands! ~ v${core.version}.${core.build}`, { type: ActivityType.Playing });
+    client.user.setActivity(bot.status || `v${MAJOR}.${MINOR} ${devStageLabel}`, { type: ActivityType.Playing });
 });
+
+stoatClient.on('ready', () => {
+    console.log(`\x1b[36m[INFO]\x1b[0m Connected to Stoat: ${stoatClient.user.username}#${stoatClient.user.discriminator} (ID: ${stoatClient.user.id})`);
+})
+
+console.log(`\x1b[36m[INFO]\x1b[0m Press Ctrl+C in this terminal window to shut down.`);
 
 function hexToInt(hex) { // discord are we serious-
   if (!hex || typeof hex !== "string") return 0;
@@ -62,126 +105,29 @@ function hexToInt(hex) { // discord are we serious-
 }
 color = hexToInt(bot.color);
 
-// global chat mechanism
+const commands = require("./components/commands");
+const globalChat = require("./components/globalChat");
+const honeypot = require("./components/honeypot");
+const slashCommands = require("./components/slashCommands");
+
 client.on("messageCreate", async (message) => {
-  if (!message.guild) return;
-  if (message.author.bot) return;
-
-  const globalChannel = client.settings.get(
-    message.guild.id,
-    "globalChannel"
-  );
-  if (globalChannel && message.channel.id === globalChannel) {
-
-    for (const guild of client.guilds.cache.values()) {
-      const targetChannelId = client.settings.get(guild.id, "globalChannel");
-      if (!targetChannelId) continue;
-
-      const targetChannel = guild.channels.cache.get(targetChannelId);
-      if (!targetChannel) continue;
-
-      const attachment = message.attachments?.first?.();
-      let repliedTo = null;
-
-      if (message.reference?.messageId) {
-        try {
-          repliedTo = await message.channel.messages.fetch(message.reference.messageId);
-        } catch {}
-      }
-
-      let embed = {
-        color: color,
-        author: {
-          name: `${message.author.displayName} (@${message.author.username}) | ${message.author.id}`,
-          icon_url: message.author.displayAvatarURL()
-        },
-        timestamp: new Date(),
-        description: message.content,
-        footer: {
-          text: `${message.guild.name}`,
-          icon_url: message.guild.iconURL()
-        }
-      }
-
-      try {
-        if (attachment) {
-          if (attachment.contentType?.startsWith("image/")) {
-            embed.image = {url: attachment.url};
-          } else {
-            embed.fields = [{name: "Attachment", value: attachment.url}];
-          }
-        }
-        if (repliedTo) {
-          const re = repliedTo.embeds?.[0];
-          const originalMessage = re?.description || "No text";
-          embed.fields = [{name: `RE: ${re?.author.name}`, value: originalMessage.slice(0, 1024)}];
-        }
-    
-        await targetChannel.send({embeds: [embed]});
-        await message.delete().catch(() => {});
-      } catch (err) {
-        console.error(`\x1b[31m[ERROR]\x1b[0m ` + err);
-      }
-    }
-  return;
-  }
+  if (await commands.handle(client, message)) return;
+  if (await globalChat.handle(client, message)) return;
+  if (await honeypot.handle(client, message)) return;
 });
 
-// prefix command mechanism
-client.on("messageCreate", async (message) => {
-    if (!message.guild || message.author.bot) return;
-    const guildConf = client.settings.get(message.guild.id);
-    if (message.content.indexOf(guildConf.prefix) !== 0) return;
-  
-    const args = message.content.slice(guildConf.prefix.length).trim().split(/ +/g);
-    const command = args.shift().toLowerCase();
-    const context = {
-      reply: (content) => message.channel.send(content),
-      edit: (content) => message.edit(content),
-      member: await message.guild.members.fetch(message.author.id),
-      user: message.author,
-      guild: message.guild,
-      channel: message.channel,
-      attachments: message.attachments
-    };
-  
-    try {
-      const commandFile = client.commands.get(command);
+client.on("guildMemberUpdate", async (oldMember, newMember) => {
+  if (await honeypot.handleMemberUpdate(client, oldMember, newMember)) return;
+});
 
-      commandFile.execute(client, context, args);
-      console.log(`\x1b[36m[INFO]\x1b[0m ${context.user.tag} (${context.guild}) ran ${message.content}`);
-    } catch (err) {
-      displayErr(client, context, message, err);
-    }
-      
-  });
-
-// slash command mechanism for the discord side  
 client.on("interactionCreate", async (interaction) => {
-  if (!interaction.isChatInputCommand()) return;
-
-  const command = interaction.commandName;
-  const context = {
-    reply: (content) => interaction.reply(content),
-    edit: (content) => interaction.editReply(content),
-    member: await interaction.guild.members.fetch(interaction.user.id),
-    user: interaction.user,
-    guild: interaction.guild,
-    channel: interaction.channel,
-    command: interaction.commandName,
-    options: interaction.options
-  };
-
-  try {
-    const commandFile = client.commands.get(command);
-
-    commandFile.execute(client, context, []);
-     console.log(`\x1b[36m[INFO]\x1b[0m ${context.user.tag} (${context.guild}) ran ${interaction.commandName}`);
-    } catch (err) {
-      displayErr(client, context, null, err); // this was a fucking PAIN it took me 5 hours to get working
-    }
+  if (await slashCommands.handle(client, interaction)) return;
 });
 
 process.on("exit", () => {
-  console.log(`\x1b[31m[ERROR]\x1b[0m A fatal error has occurred. Process halted.`)
+  if (fluxer) {
+    console.log(`\x1b[33m[WARN]\x1b[0m Fluxer support for Axeon Orchid will be only implemented in Beta 2.`)
+  } else {
+    console.log(`\x1b[31m[ERROR]\x1b[0m A fatal error has occurred. Process halted.`)
+  }
 });

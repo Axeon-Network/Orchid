@@ -1,6 +1,5 @@
 {
   "name": "Axeon Orchid",
-  "version": "0.1",
-  "dev_stage": "Alpha",
-  "build": 1000
+  "devStage": "Beta 1",
+  "idPrefix": "b1"
 }

@@ -1,13 +1,10 @@
 {
-  "token": "",
-  "clientID": "",
-  "ownerID": "",
-
   "prefix": "o.",
   "color": "#bdcbe0",
 
   "status": "",
   "indicator": "",
 
-  "debug_mode": false
+  "debug_mode": true,
+  "show_ascii": true
 }

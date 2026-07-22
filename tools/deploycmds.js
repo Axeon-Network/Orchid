@@ -1,36 +1,28 @@
 const fs = require("fs");
+const path = require("path");
 const { REST, Routes } = require("discord.js");
-const fetch = require("node-fetch");
-const bot = require("./config/config.json");
-const core = require("./config/core.json");
+const auth = require("../config/auth.json");
 
-let displayVersion;
+const panther = require("../components/panther.js");
 
-try {
-  ({ displayVersion } = require('./components/panther.js'));
-displayVersion();
-
-} catch (err) {
-  console.log(core.name);
-}
-
-const commandFiles = fs.readdirSync("./cmds");
+const commandsPath = path.join(__dirname, "../cmds");
+const commandFiles = fs.readdirSync(commandsPath);
 
 const commands = [];
 
 for (const file of commandFiles) {
-  const cmd = require(`./cmds/${file}`);
+  const cmd = require(`../cmds/${file}`);
   if (!cmd.data) continue;
 
   commands.push(cmd.data.toJSON());
 }
 
-const rest = new REST({ version: "10" }).setToken(bot.token);
+const rest = new REST({ version: "10" }).setToken(auth.discord_token);
 
 (async () => {
   try {
   await rest.put(
-    Routes.applicationCommands(bot.clientID),
+    Routes.applicationCommands(auth.discord_clientID),
     { body: commands }
   );
 
