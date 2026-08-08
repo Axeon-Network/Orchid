@@ -1,75 +1,77 @@
-exports.handle = async function (client, message) {
+const bot = require("../config/config.json");
+const { technicalErr } = require("./errorHandler");
 
-  if (!message.guild) return;
+exports.handle = async function (client, db, message, context) {
+  if (!context.guild) return;
   if (message.author.bot) return;
 
-  const globalChannel = client.settings.get(message.guild.id, "globalChannel");
-  if (!globalChannel || message.channel.id !== globalChannel) return false;
+  const bans = db.global.get("bans") || {};
+  if (bans[context.user.id]) if (bot.debug_mode) return console.debug(`\x1b[33m[WARN]\x1b[0m GlobalChat: Ignoring banned user ${context.sender}`)
+
+  const globalChannel = db.settings.get(context.guild.id, "globalChannel");
+  if (!globalChannel || context.channel.id !== globalChannel) return false;
+  const destinations = db.getBridgeChannels("globalChannel");
 
   try {
-    for (const guild of client.guilds.cache.values()) {
-      const targetChannelId = client.settings.get(guild.id, "globalChannel");
-      if (!targetChannelId) continue;
-
-      const targetChannel = guild.channels.cache.get(targetChannelId);
-      if (!targetChannel) continue;
-
+    for (const destination of destinations) {
+      const reply = await context.fetchReply(message);
       const attachment = message.attachments?.first?.();
-      let repliedTo = null;
-
-      if (message.reference?.messageId) {
-        try {
-          repliedTo = await message.channel.messages.fetch(message.reference.messageId);
-        } catch {}
-      }
-
       const badges = [];
 
       const auth = require("../config/auth.json");
-      if (message.author.id === auth.discord_ownerID) badges.push(`👑`);
+      const ownerID = [auth.discord_ownerID, auth.stoat_ownerID].filter(Boolean);
+      if (ownerID.includes(context.user.id)) badges.push(`👑`);
 
-      const moderators = client.global.get("moderators") || [];
-      if (moderators.includes(message.author.id)) badges.push(`🛡️`);
+      const moderators = db.global.get("moderators") || [];
+      if (moderators.includes(context.user.id)) badges.push(`🛡️`);
 
-      let embed = {
-        color: color,
-        author: {
-          name: `${message.author.displayName} (@${message.author.username}) ${badges.join("")} | ${message.author.id}`,
-          icon_url: message.author.displayAvatarURL()
-        },
-        timestamp: new Date(),
-        description: message.content,
-        footer: {
-          text: `${message.guild.name}`,
-          icon_url: message.guild.iconURL()
+      let embed = {timestamp: new Date(), description: message.content};
+
+      if (reply) {
+        try {
+          destination.fields(embed, [{name: `RE: ${reply.author}`, value: reply.text.slice(0, 1024)}]);
+        } catch (err) {
+          console.error(`\x1b[31m[ERROR]\x1b[0m GlobalChat: Couldn't process original message`);
+          console.error(`\x1b[31m[ERROR]\x1b[0m ` + err);
         }
       }
 
-        const bot = require("../config/config.json");
-
-        if (attachment) {
-          if (attachment.contentType?.startsWith("image/")) {
-            embed.image = {url: attachment.url};
-          } else {
-            embed.fields = [{name: "Attachment", value: attachment.url}];
-          }
-        }
-        if (repliedTo) {
-          const re = repliedTo.embeds?.[0];
-          const originalMessage = re?.description || "No text";
-          embed.fields = [{name: `RE: ${re?.author.name}`, value: originalMessage.slice(0, 1024)}];
-        }
-    
-        await targetChannel.send({embeds: [embed]});
+      if (attachment) {
         try {
-        await message.delete();
+          if (attachment.contentType?.startsWith("image/")) {
+            context.image(embed, attachment.url);
+          } else {
+            context.fields(embed, [{name: "Attachment", value: attachment.url}]);
+          }
         } catch (err) {
-           if (bot.debug_mode) console.debug(`\x1b[31m[ERROR]\x1b[0m GlobalChat: Failed to delete originalMessage; missing permissions in ${message.guild.name}`);
+          console.error(`\x1b[31m[ERROR]\x1b[0m GlobalChat: Couldn't read attachment`);
+          console.error(`\x1b[31m[ERROR]\x1b[0m ` + err);
         }
-        console.log(`\x1b[36m[INFO]\x1b[0m GlobalChat: Successfully relayed message from ${message.author.tag} (${message.guild.name}) to the global chat`);
+      }
+
+      destination.footer(embed, {
+        text: `${context.guild.name} (${context.platform})`,
+        icon_url: typeof context.guild?.iconURL === "function" ? context.guild.iconURL() : context.guild?.iconURL
+      });
+
+      destination.author(embed, {
+        name: `${context.user.displayName} (@${context.sender}) ${badges.join("")} | ${context.user.id}`,
+        icon_url: context.user.displayAvatarURL?.() ?? context.user?.avatarURL ?? undefined
+      });
+    
+      await destination.send({embeds: [embed]});
     };
+    console.log(`\x1b[36m[INFO]\x1b[0m GlobalChat: Successfully relayed message from ${context.sender} (${context.guild.name}, ${context.platform}) to the global chat`);
+    try {
+      await context.delete();
     } catch (err) {
-        console.error(`\x1b[31m[ERROR]\x1b[0m ` + err);
+      console.error(`\x1b[31m[ERROR]\x1b[0m GlobalChat: Failed to delete originalMessage (${context.guild.name}, ${context.platform})`);
+      console.error(`\x1b[31m[ERROR]\x1b[0m ` + err);
     }
-    return true;
+  } catch (err) {
+    console.error(`\x1b[31m[ERROR]\x1b[0m GlobalChat: Couldn't relay message`);
+    technicalErr(client, context, message, err);
+  }
+
+  return true;
 };

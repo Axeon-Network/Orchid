@@ -5,19 +5,19 @@ const meta = {
 };
 exports.meta = meta;
 
-const { EmbedBuilder, PermissionFlagsBits } = require("discord.js");
 const bot = require("../config/config.json");
 const auth = require("../config/auth.json");
 
-exports.execute = async (client, context) => {
-  const config = client.settings.get(context.guild.id);
+exports.execute = async (client, db, context) => {
+  const config = db.settings.get(context.guild.id);
 
-  const admin = (context.member?.permissions?.has(PermissionFlagsBits.Administrator) || context.member.permissions.has(PermissionFlagsBits.ManageGuild)) ?? false;
-  const owner = context.user.id === auth.discord_ownerID;
+  const admin = context.admin;
+  const ownerID = [auth.discord_ownerID, auth.stoat_ownerID].filter(Boolean);
+  const owner = ownerID.includes(context.user.id);
 
   const fields = [];
 
-  for (const command of client.commands.values()) {
+  for (const command of db.commands.values()) {
 
     const meta = command.meta;
     if (!meta) continue;
@@ -31,16 +31,14 @@ exports.execute = async (client, context) => {
       inline: true
     });
   }
+
+  let list = {
+    title: `❔ Help`,
+    description: `My prefix on **${context.guild.name}** is **${config.prefix}** \nMy global prefix is **${bot.prefix}** \n[] = Optional arguments, <> = Required arguments`
+  }
+  context.fields(list, fields);
+  context.dm({embeds: [list]});
   
-  let list = new EmbedBuilder()
-    .setColor(color)
-    .setTitle(`:grey_question: Help`)
-    .setDescription(`My prefix on **${context.guild.name}** is **${config.prefix}** \nMy global prefix is **${bot.prefix}** \n[] = Optional arguments, <> = Required arguments`)
-    .addFields(fields)
-  context.user.send({embeds: [list]});
-  
-  let embed = new EmbedBuilder()
-    .setColor(color)
-    .setTitle('You\'ve got mail! ✉️')
+  let embed = {title: `✉️ You've got mail!`}
   context.reply({embeds: [embed]})
 }

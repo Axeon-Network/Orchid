@@ -6,7 +6,7 @@ const meta = {
 };
 exports.meta = meta;
 
-exports.execute = async (client, context, args) => {
+exports.execute = async (client, db, context, args) => {
     try {
         const code = args.join(" ");
         let evaled = eval(code);
@@ -15,14 +15,14 @@ exports.execute = async (client, context, args) => {
             evaled = require("util").inspect(evaled);
 
         context.reply({embeds: [{
-                color: 0x00ff00,
+                color: "#00ff00",
                 title: `✅ Result`,
                 description: `\`\`\`xl\n${clean(evaled)}\n\`\`\``,
             }]
         });
     } catch (err) {
         context.reply({embeds: [{
-                color: 0xff0000,
+                color: "#ff0000",
                 title: `❌ Error!`,
                 description: `\`\`\`xl\n${clean(err)}\n\`\`\``,
             }]

@@ -20,13 +20,13 @@ exports.data = new SlashCommandBuilder()
       .addChannelTypes(ChannelType.GuildText)
   );
 
-exports.execute = async (client, context, args) => {
-  const channel = context.options?.getChannel("channel") || context.guild.channels.cache.get(args[0]?.replace(/[<#>]/g, ""));
+exports.execute = async (client, db, context, args) => {
+  const channel = await context.getChannel(args[0]);
   if (!channel) return missingArgument("What channel would you like to use as the announcement channel?", context, meta);
 
-  client.settings.set(context.guild.id, channel.id, "announcementChannel");
+  db.settings.set(context.guild.id, channel.id, "announcementChannel");
   context.reply({embeds: [{
-    color: 0x00ff00,
+    color: "#00ff00",
     title: `✅ Success!`,
     description: `Set announcement channel to ${channel} for **${context.guild.name}**.`,
   }],

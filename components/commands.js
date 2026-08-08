@@ -1,35 +1,30 @@
-const { missingPermission, technicalErr } = require("./errorHandler.js");
+const { missingPermission, technicalErr } = require("./errorHandler");
 
-exports.handle = async function (client, message) {
-  if (!message.guild || message.author.bot) return;
-  const config = client.settings.get(message.guild.id);
-  if (message.content.indexOf(config.prefix) !== 0) return;
+exports.handle = async function (client, db, message, context) {
+  if (!context.guild || context.author.bot) return;
+  const config = db.settings.get(context.guild.id);
+  if (context.content.indexOf(config.prefix) !== 0) return;
   
-  const args = message.content.slice(config.prefix.length).trim().split(/ +/g);
+  const args = context.content.slice(config.prefix.length).trim().split(/ +/g);
   const command = args.shift().toLowerCase();
-  const context = {
-    reply: (content) => message.channel.send(content),
-    edit: (content) => message.edit(content),
-    member: await message.guild.members.fetch(message.author.id),
-    user: message.author,
-    guild: message.guild,
-    channel: message.channel,
-    attachments: message.attachments
-  };
   
   try {
-    const commandFile = client.commands.get(command);
+    const commandFile = db.commands.get(command);
+    if (!commandFile) return;
 
     const auth = require("../config/auth.json");
-    const { PermissionFlagsBits } = require('discord.js');
+    const ownerID = [auth.discord_ownerID, auth.stoat_ownerID].filter(Boolean);
     if (
-      (commandFile.meta.ownerOnly && context.user.id !== auth.discord_ownerID) ||
-      (commandFile.meta.adminOnly && !(context.member.permissions.has(PermissionFlagsBits.Administrator) || context.member.permissions.has(PermissionFlagsBits.ManageGuild)))
+      (commandFile.meta.adminOnly && !(context.admin))
+    ) return missingPermission(context, commandFile.meta);
+    if (
+      (commandFile.meta.ownerOnly && !ownerID.includes(context.user.id))
     ) return missingPermission(context, commandFile.meta);
 
-    commandFile.execute(client, context, args);
-    console.log(`\x1b[36m[INFO]\x1b[0m ${context.user.tag} (${context.guild}) ran ${command}`);
+    await commandFile.execute(client, db, context, args);
+    console.log(`\x1b[36m[INFO]\x1b[0m ${context.sender} (${context.guild.name}, ${context.platform}) ran ${command}`);
   } catch (err) {
+    console.log(`\x1b[31m[ERROR]\x1b[0m Failed to process ${context.content}, ran by ${context.sender} (${context.guild.name}, ${context.platform}).`);
     technicalErr(client, context, message, err);
   }
 

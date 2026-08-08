@@ -3,7 +3,7 @@ const path = require("path");
 const { REST, Routes } = require("discord.js");
 const auth = require("../config/auth.json");
 
-const panther = require("../components/panther.js");
+const panther = require("../components/panther");
 
 const commandsPath = path.join(__dirname, "../cmds");
 const commandFiles = fs.readdirSync(commandsPath);

@@ -1,10 +1,12 @@
 {
   "prefix": "o.",
-  "color": "#bdcbe0",
+  "color": "#fb95c8",
 
   "status": "",
   "indicator": "",
 
-  "debug_mode": true,
+  "support_server": "https://discord.gg/wDxDKJU2sj",
+
+  "debug_mode": false,
   "show_ascii": true
 }

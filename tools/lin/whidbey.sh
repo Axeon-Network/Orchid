@@ -4,7 +4,6 @@
 
 # To run: "source ./tools/lin/whidbey.sh" without quotations
 
-# Capture the true script file location context immediately
 export WhdScript="${BASH_SOURCE[0]}"
 if [ -z "$WhdScript" ]; then
     WhdScript="$0"
@@ -34,12 +33,10 @@ echo "Axeon Whidbey Development Environment Version 4.0"
 echo "Copyright (c) $copyown. Portions (c) Axeon Network."
 echo ""
 
-# Initialize default environment properties
 export WhdPrivateBuild="no"
-export WhdIsDeltaEnabled="yes"
+export WhdIsDeltaEnabled="no"
 export WhdBuildType=""
 
-# Loop through command line arguments in any order
 while [ "$#" -gt 0 ]; do
     case "$(echo "$1" | tr '[:upper:]' '[:lower:]')" in
         checked)
@@ -58,7 +55,6 @@ while [ "$#" -gt 0 ]; do
     shift
 done
 
-# Default build configuration rules
 if [ -z "$WhdBuildType" ]; then
     export WhdBuildType="chk"
 fi
@@ -69,13 +65,11 @@ else
     status="Retail"
 fi
 
-# Read current branch lab properties via Git
 lab=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
 if [ -z "$lab" ]; then
     lab="PANTHER_${USER:-dummy}"
 fi
 
-# Set the console title wrapper block dynamically
 if [[ "$OSTYPE" == "darwin"* ]]; then
     echo -n -e "\033]0;Axeon Whidbey ~ Och $status from DevLab $lab inside $(pwd)\007"
 else
@@ -83,7 +77,6 @@ else
 fi
 
 _whd_run_prep() {
-    # Orchid Repository Pipeline Pushes
     pushd "$OrchidSource" > /dev/null
     git add .
     read -p "What would you like to name your commit for Orchid? " OchCommitName
@@ -124,7 +117,6 @@ _whd_show_help() {
     echo ""
 }
 
-# Global Session Shell Command Maps
 whelp() { _whd_show_help; }
 prep() { _whd_run_prep; }
 npminst() { npm install; }

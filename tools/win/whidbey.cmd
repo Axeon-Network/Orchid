@@ -2,10 +2,8 @@
 :: Copyright 2026 KitSixtyFour. For internal Axeon use only.
 
 @echo off
-:: Capture the true script path immediately before any argument shifting happens
 set "WhdScript=%~f0"
 
-:: Route straight to internal hooks if called by aliases
 if "%1"=="show_help" goto show_help
 if "%1"=="run_och" goto run_och
 if "%1"=="run_commit" goto run_commit
@@ -22,12 +20,10 @@ echo Axeon Whidbey Development Environment Version 4.0
 echo Copyright (c) Microsoft Corp. Portions (c) Axeon Network.
 echo.
 
-:: Initialize default environment properties
 set "WhdPrivateBuild=no"
-set "WhdIsDeltaEnabled=yes"
+set "WhdIsDeltaEnabled=no"
 set "WhdBuildType="
 
-:: Loop through command line arguments in any order
 :arg_loop
 if "%~1"==" " goto end_arg_loop
 if "%~1"=="" goto end_arg_loop
@@ -40,23 +36,19 @@ shift /1
 goto arg_loop
 :end_arg_loop
 
-:: If no build type parameter was passed, default it safely to checked
 if "!WhdBuildType!"=="" set "WhdBuildType=chk"
 
-:: Translate build type to readable status name
 if "!WhdBuildType!"=="chk" (
     set "status=Checked"
 ) else (
     set "status=Retail"
 )
 
-:: Read current branch lab properties via Git
 for /f "tokens=*" %%i in ('git rev-parse --abbrev-ref HEAD 2^>nul') do set "lab=%%i"
 if "%lab%"=="" set "lab=PANTHER_%username%"
 
 title Axeon Whidbey ~ och !status! from DevLab !lab! inside %cd%
 
-:: Register Doskey Aliases using the protected path variable
 doskey whelp="%WhdScript%" show_help
 doskey npminst=npm install
 doskey och="%WhdScript%" run_och $*

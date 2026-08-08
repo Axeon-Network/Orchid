@@ -1,5 +1,6 @@
 {
   "name": "Axeon Orchid",
-  "devStage": "Beta 1",
-  "idPrefix": "b1"
+  "short_name": "Orchid",
+  "dev_stage": "Beta 1",
+  "id_prefix": "b1"
 }

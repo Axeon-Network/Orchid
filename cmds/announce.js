@@ -20,60 +20,56 @@ exports.data = new SlashCommandBuilder()
   )
   .addAttachmentOption(option =>
   option
-      .setName("media")
-      .setDescription("Optional image/video")
-      .setRequired(false)
+    .setName("media")
+    .setDescription("Optional image/video")
+    .setRequired(false)
   );
 
-exports.execute = async (client, context, args) => {
+exports.execute = async (client, db, context, args) => {
   const text = context.options?.getString("text") || args.join(" ");
   const attachment = context.options?.getAttachment?.("media") || context.attachments?.first?.();
   if (!text) return missingArgument("What do you wanna announce?", context, meta);
 
-  const guilds = client.guilds.cache;
+  const destinations = db.getBridgeChannels("announcementChannel");
 
-  for (const guild of guilds.values()) {
+  for (const destination of destinations) {
     try {
-      const channelId = client.settings.get(guild.id, "announcementChannel");
-      if (!channelId) continue;
+      let embed = {timestamp: new Date(), description: text};
 
-      const channel = guild.channels.cache.get(channelId);
-      if (!channel) continue;
-
-      let embed = {
-        color: color,
-        author: {
-          name: `Global announcement from ${context.user.displayName}`,
-	        icon_url: context.user.displayAvatarURL(),
-        },
-        timestamp: new Date(),
-        description: text,
-        }
-
+      destination.author(embed, {
+        name: `Global announcement from ${context.user.displayName}`,
+	      icon_url: context.user.displayAvatarURL?.() ?? context.user?.avatarURL ?? undefined
+      });
+      
       if (attachment) {
-        if (attachment.contentType?.startsWith("image/")) {
-          embed.image = {url: attachment.url};
-        } else {
-          embed.fields = [{name: "Attachment", value: attachment.url}];
+        try {
+          if (attachment.contentType?.startsWith("image/")) {
+            context.image(embed, attachment.url);
+          } else {
+            context.fields(embed, [{name: "Attachment", value: attachment.url}]);
+          }
+        } catch (err) {
+          console.error(`\x1b[31m[ERROR]\x1b[0m Announce: Couldn't read attachment`);
+          console.error(`\x1b[31m[ERROR]\x1b[0m ` + err);
         }
       }
 
-      await channel.send({embeds: [embed],
-      });
+      await destination.send({embeds: [embed]});
     } catch (err) {
-      return context.reply({embeds: [{
-        color: 0xff0000,
+      context.reply({embeds: [{
+        color: "#ff0000",
         title: `❌ Error!`,
         description: `Couldn't send announcement`,
-      }],
-      });
+      }]});
+      console.error(`\x1b[31m[ERROR]\x1b[0m Announce: Couldn't send announcement`);
+      console.error(`\x1b[31m[ERROR]\x1b[0m ` + err);
+      return;
     }
   }
 
   context.reply({embeds: [{
-    color: 0x00ff00,
+    color: "#00ff00",
     title: `✅ Success!`,
     description: `Sent global announcement.`,
-  }],
-  });
+  }]});
 }

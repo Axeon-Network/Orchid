@@ -1,35 +1,27 @@
-const { missingPermission, technicalErr } = require("./errorHandler.js");
+const { missingPermission, technicalErr } = require("./errorHandler");
 
-exports.handle = async function (client, interaction) {
+exports.handle = async function (client, db, interaction, context) {
   if (!interaction.isChatInputCommand()) return;
 
   const command = interaction.commandName;
-  const context = {
-    reply: (content) => interaction.reply(content),
-    edit: (content) => interaction.editReply(content),
-    member: await interaction.guild.members.fetch(interaction.user.id),
-    user: interaction.user,
-    guild: interaction.guild,
-    channel: interaction.channel,
-    command: interaction.commandName,
-    options: interaction.options
-  };
 
   try {
-    const commandFile = client.commands.get(command);
+    const commandFile = db.commands.get(command);
 
     const auth = require("../config/auth.json");
-    const { PermissionFlagsBits } = require('discord.js');
+    const ownerID = [auth.discord_ownerID, auth.stoat_ownerID].filter(Boolean);
     if (
-      (commandFile.meta.ownerOnly && context.user.id !== auth.discord_ownerID) ||
-      (commandFile.meta.adminOnly && !(context.member.permissions.has(PermissionFlagsBits.Administrator) || context.member.permissions.has(PermissionFlagsBits.ManageGuild)))
+      (commandFile.meta.adminOnly && !(context.admin))
+    ) return missingPermission(context, commandFile.meta);
+    if (
+      (commandFile.meta.ownerOnly && !ownerID.includes(context.user.id))
     ) return missingPermission(context, commandFile.meta);
 
-    commandFile.execute(client, context, []);
-     console.log(`\x1b[36m[INFO]\x1b[0m ${context.user.tag} (${context.guild}) ran ${interaction.commandName}`);
-    } catch (err) {
-      technicalErr(client, context, null, err); // this was a fucking PAIN it took me 5 hours to get working
-    }
-
-    return true;
+    await commandFile.execute(client, db, context, []);
+    console.log(`\x1b[36m[INFO]\x1b[0m ${context.sender} (${context.guild.name}, ${context.platform}) ran ${command}`);
+  } catch (err) {
+    console.log(`\x1b[31m[ERROR]\x1b[0m Failed to process ${command}, ran by ${context.sender} (${context.guild.name}, ${context.platform}).`);
+    technicalErr(client, context, null, err); // this was a fucking PAIN it took me 5 hours to get working
+  }
+  return true;
 }

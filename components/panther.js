@@ -22,7 +22,7 @@ const deltaNumber = deltaEnabled && isDebug ? 1 : 0;
 let prevBUILD = storedNumber ?? null;
 let prevDELTA = deltaNumber ?? null;
 
-const devPhase = core.devStage || "Gold Release";
+const devPhase = core.dev_stage || "Gold Release";
 const type = isDebug ? "Debug" : isRetail ? "Retail" : "";
 
 const versionFile = path.join(__dirname, "./version.json");
@@ -64,7 +64,7 @@ try {
 const privateBuild = process.env.WhdPrivateBuild === "yes";
 if (privateBuild) lab = `private/${lab}(${user})`; 
 
-const idPrefix = bot.idPrefix ?? "dp";
+const idPrefix = core.id_prefix ?? "dp";
 const idSuffix = isDebug ? "chk" : "fre";
 const id = `${idPrefix}${idSuffix}`;
 
@@ -93,6 +93,14 @@ if (isDebug) {
     timestamp = generateTimestamp;
 } else {
     timestamp = savedTimestamp ?? generateTimestamp;
+}
+
+const privateBuildEnv = process.env.WhdPrivateBuild;
+const deltaEnv = process.env.WhdIsDeltaEnabled;
+
+if (bot.debug_mode) {
+    if (privateBuild) console.debug(`\x1b[36m[INFO]\x1b[0m Panther: Private build enabled (${privateBuildEnv ? "WhdPrivateBuild=yes" : "default"})`);
+    if (deltaEnabled) console.debug(`\x1b[36m[INFO]\x1b[0m Panther: Delta numbering enabled (${deltaEnv ? `WhdIsDeltaEnabled=${deltaEnv}` : "default"})`);
 }
 
 if (isDebug) {

@@ -19,13 +19,13 @@ exports.data = new SlashCommandBuilder()
       .setRequired(true)
   );
 
-exports.execute = async (client, context, args) => {
+exports.execute = async (client, db, context, args) => {
   const prefix = args[0];
   if (!prefix) return missingArgument("What prefix do you want to use with this bot?", context, meta);
 
-  client.settings.set(context.guild.id, prefix, "prefix");
+  db.settings.set(context.guild.id, prefix, "prefix");
   context.reply({embeds: [{
-    color: 0x00ff00,
+    color: "#00ff00",
     title: `✅ Success!`,
     description: `Set prefix to \`${prefix}\` for **${context.guild.name}**`,
   }],
