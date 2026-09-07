@@ -1,3 +1,6 @@
+> [!WARNING]
+> If you're experiencing SQLite issues when running Orchid Beta 2 under Node v26.8.x, please try downgrading to an earlier version of Node (e.g. 26.2.x) and run `npm install` there.
+
 <span><h1><img src="https://axeon-network.github.io/media/etc/orchid.png" style="width:5%;"> Orchid</h1></span>
 Making the Axeon Network a ...network!\
 Cross-platform bot bridging Discord, Stoat, and (soon) Fluxer built specifically for the Axeon Network.
