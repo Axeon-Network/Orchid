@@ -1,76 +1,83 @@
-const bot = require("../config/config.json");
-const { technicalErr } = require("./errorHandler");
-
-exports.handle = async function (client, db, message, context) {
-  if (!context.guild) return;
+exports.handle = async function (client, db, message, ctx) {
+  if (!ctx.guild) return;
   if (message.author.bot) return;
+  log('debug', `GlobalChat called`)
 
   const bans = db.global.get("bans") || {};
-  if (bans[context.user.id]) if (bot.debug_mode) return console.debug(`\x1b[33m[WARN]\x1b[0m GlobalChat: Ignoring banned user ${context.sender}`)
+  if (bans[ctx.user.id]) return log('warn', `GlobalChat: Ignoring banned user ${ctx.sender}`);
 
-  const globalChannel = db.settings.get(context.guild.id, "globalChannel");
-  if (!globalChannel || context.channel.id !== globalChannel) return false;
+  const globalChannel = db.settings.get(ctx.guild.id, "globalChannel");
+  if (!globalChannel || ctx.channel.id !== globalChannel) return log('debug', `GlobalChat: ${ctx.channel.name} (${ctx.guild.name}, ${ctx.platform}) is not a globalChannel`); false;
   const destinations = db.getBridgeChannels("globalChannel");
+  log('debug', `GlobalChat: Channel: ${globalChannel}`)
 
   try {
     for (const destination of destinations) {
-      const reply = await context.fetchReply(message);
+      const reply = await ctx.fetchReply(message);
       const attachment = message.attachments?.first?.();
       const badges = [];
 
-      const auth = require("../config/auth.json");
-      const ownerID = [auth.discord_ownerID, auth.stoat_ownerID].filter(Boolean);
-      if (ownerID.includes(context.user.id)) badges.push(`👑`);
+      if (ctx.isOwner) {
+        log('debug', `GlobalChat: User ${ctx.sender} is a bot maintainer, appending maintainer badge`);
+        badges.push(`👑`);
+      }
 
-      const moderators = db.global.get("moderators") || [];
-      if (moderators.includes(context.user.id)) badges.push(`🛡️`);
+      if (ctx.isGlobalMod) {
+        log('debug', `GlobalChat: User ${ctx.sender} is a global moderator, appending moderator badge`);
+        badges.push(`🛡️`);
+      }
 
-      let embed = {timestamp: new Date(), description: message.content};
+      let embed = {
+        author: {
+          name: `${ctx.user.displayName} (@${ctx.sender}) ${badges.join("")} | ${ctx.user.id}`,
+          icon_url: ctx.user.displayAvatarURL?.() ?? ctx.user?.avatarURL ?? undefined
+        },
+        description: message.content,
+        timestamp: new Date(),
+        footer: {
+          text: `${ctx.guild.name} (${ctx.platform})`,
+          icon_url: typeof ctx.guild?.iconURL === "function" ? ctx.guild.iconURL() : ctx.guild?.iconURL
+        }
+      };
 
       if (reply) {
+        log('debug', `GlobalChat: Message by user ${ctx.sender} is a reply to message by user ${reply.author}`);
         try {
-          destination.fields(embed, [{name: `RE: ${reply.author}`, value: reply.text.slice(0, 1024)}]);
+          embed = ({...embed, fields: [{name: `RE: ${reply.author}`, value: reply.text.slice(0, 1024)}]});
         } catch (err) {
-          console.error(`\x1b[31m[ERROR]\x1b[0m GlobalChat: Couldn't process original message`);
-          console.error(`\x1b[31m[ERROR]\x1b[0m ` + err);
+          log('error', `GlobalChat: Couldn't process original message`);
+          log('error', err);
         }
       }
 
       if (attachment) {
+        log('debug', `GlobalChat: Attachment detected: ${attachment.url}`);
         try {
           if (attachment.contentType?.startsWith("image/")) {
-            context.image(embed, attachment.url);
+            embed = ({...embed, image: {url: attachment.url}});
           } else {
-            context.fields(embed, [{name: "Attachment", value: attachment.url}]);
+            embed = ({...embed, fields: [{name: "Attachment", value: attachment.url}]});
           }
         } catch (err) {
-          console.error(`\x1b[31m[ERROR]\x1b[0m GlobalChat: Couldn't read attachment`);
-          console.error(`\x1b[31m[ERROR]\x1b[0m ` + err);
+          log('error', `GlobalChat: Couldn't read attachment`);
+          log('error', err);
         }
       }
-
-      destination.footer(embed, {
-        text: `${context.guild.name} (${context.platform})`,
-        icon_url: typeof context.guild?.iconURL === "function" ? context.guild.iconURL() : context.guild?.iconURL
-      });
-
-      destination.author(embed, {
-        name: `${context.user.displayName} (@${context.sender}) ${badges.join("")} | ${context.user.id}`,
-        icon_url: context.user.displayAvatarURL?.() ?? context.user?.avatarURL ?? undefined
-      });
     
+      embed = destination.embed(embed);
       await destination.send({embeds: [embed]});
     };
-    console.log(`\x1b[36m[INFO]\x1b[0m GlobalChat: Successfully relayed message from ${context.sender} (${context.guild.name}, ${context.platform}) to the global chat`);
+    log('info', `GlobalChat: Successfully relayed message from ${ctx.sender} (${ctx.guild.name}, ${ctx.platform}) to the global chat`);
+
     try {
-      await context.delete();
+      await ctx.delete();
     } catch (err) {
-      console.error(`\x1b[31m[ERROR]\x1b[0m GlobalChat: Failed to delete originalMessage (${context.guild.name}, ${context.platform})`);
-      console.error(`\x1b[31m[ERROR]\x1b[0m ` + err);
+      log('error', `GlobalChat: Failed to delete original message (${ctx.guild.name}, ${ctx.platform})`);
+      log('error', err);
     }
   } catch (err) {
-    console.error(`\x1b[31m[ERROR]\x1b[0m GlobalChat: Couldn't relay message`);
-    technicalErr(client, context, message, err);
+    log('error', `GlobalChat: Couldn't relay message`)
+    technicalErr(client, ctx, message, err);
   }
 
   return true;

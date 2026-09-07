@@ -6,77 +6,75 @@ const fs = require('fs');
 const path = require("path");
 const os = require("os");
 
-const bot = require("../config/config.json");
-const core = require("../config/core.json");
-
+// version number config
 const major = 0;
-const minor = 2;
+const minor = 3;
 
-const isDebug = process.env.WhdBuildType === "chk" || (process.env.WhdBuildType == null && bot.debug_mode);
-const isRetail = process.env.WhdBuildType === "fre" || (process.env.WhdBuildType == null && !bot.debug_mode);
+console.log(`Axeon Panther Version Tracker Utility Version 5.0 [Build 5400]`);
+console.log(`Copyright (C) 2025-2026 Axeon Network.`);
+console.log(``);
+console.log(`Check us out over at https://www.github.com/Axeon-Network!`);
 
-const storedNumber = "1200";
-const deltaEnabled = process.env.WhdIsDeltaEnabled !== "no";
-const deltaNumber = deltaEnabled && isDebug ? 1 : 0;
+const versionHeaderDir = path.join(__dirname, "./version.json");
 
-let prevBUILD = storedNumber ?? null;
-let prevDELTA = deltaNumber ?? null;
-
-const devPhase = core.dev_stage || "Gold Release";
-const type = isDebug ? "Debug" : isRetail ? "Retail" : "";
-
-const versionFile = path.join(__dirname, "./version.json");
-
-if (fs.existsSync(versionFile)) {
-    try {
-        const version = JSON.parse(fs.readFileSync(versionFile, "utf8"));
-        prevBUILD = version.BUILD ?? null;
-        prevDELTA = version.DELTA ?? null;
-    } catch (err) {
-        console.error(`\x1b[31m[ERROR]\x1b[0m Panther: Failed to read version.json`);
-        if (bot.debug_mode) console.error(`\x1b[31m[ERROR]\x1b[0m ` + err);
-    }
-}
-
-console.log(`${core.name} Engine Version ${major}.${minor} (Build ${prevBUILD}.${prevDELTA}: ${devPhase}) (${type})`);
-console.log(`               (C) 2026 Axeon Network. All Rights Reserved.\n\n`);
-console.log(`Axeon Panther Version Master Utility for JavaScript [Version 4.0.5250]`);
-console.log(`               (C) 2026 Axeon Network.`);
-console.log(`               Written by KitSixtyFour for the Axeon Network`);
-console.log(`               Adapted to JavaScript by AveryEclipse\n\n`)
-
-const user = process.env.USERNAME || process.env.USER || os.userInfo().username || "dummy";
+const verboseEnabled = bot.verbose_panther;
 
 let lab;
 try {
     lab = execSync("git rev-parse --abbrev-ref HEAD", {stdio: ["ignore", "pipe", "ignore"]}).toString().trim();
     if (!lab) throw new Error();
+    if (verboseEnabled) console.log("Panther:", `Using Git branch ${lab}`);
 } catch {
+    // if git isn't present, or if we simply can't get a lab, set a dummy one
     const now = new Date();
-    const dateStub =
+    const labDate =
         String(now.getFullYear()).slice(2) + "-" +
         String(now.getMonth() + 1).padStart(2, "0") + "-" +
         String(now.getDate()).padStart(2, "0");
-
-    lab = `${dateStub}_${user}`;
+    const labUser = process.env.USERNAME || process.env.USER || os.userInfo().username || "dummy";
+    const lab = `${labDate}_${labUser}`;
+    console.log("Panther:", `Cannot find a valid Git branch. Panther will load ${lab} instead.`)
 }
 
-const privateBuild = process.env.WhdPrivateBuild === "yes";
-if (privateBuild) lab = `private/${lab}(${user})`; 
+const isDebug = process.env.WHD_BUILD_TYPE === "chk" || bot.debugMode;
+const canHasDelta = process.env.WHD_IS_DELTA_ENABLED === "yes" || bot.buildDelta;
+const isPrivate = process.env.WHD_PRIVATE_BUILD === "yes" || bot.privateBuild;
 
-const idPrefix = core.id_prefix ?? "dp";
+module.exports = {isDebug};
+
+if (isPrivate) {
+    const currentUser = process.env.USERNAME || process.env.USER || os.userInfo().username || "dummy";
+    const lab = `private/${lab}(${currentUser})`; 
+    if (verboseEnabled) console.log("Panther:", `User ${currentUser} will be appended to lab.`)
+}
+
+// component identifies and build numbers
+const idPrefix = core.idPrefix ?? "dp";
 const idSuffix = isDebug ? "chk" : "fre";
 const id = `${idPrefix}${idSuffix}`;
 
-let currentIncrementalNumber = prevBUILD;
-let currentDelta = prevDELTA;
+const storedNumber = 1700;
+const deltaNbr = canHasDelta && isDebug ? 1 : 0;
 
-let savedTimestamp = null;
-if (fs.existsSync(versionFile)) {
+let prevBuild = storedNumber ?? null;
+let prevDelta = deltaNbr ?? null;
+
+if (fs.existsSync(versionHeaderDir)) {
     try {
-        const version = JSON.parse(fs.readFileSync(versionFile, "utf8"));
-        savedTimestamp = version.TIMESTAMP ?? null;
+        const version = JSON.parse(fs.readFileSync(versionHeaderDir, "utf8"));
+        prevBuild = version.PTH_BUILD ?? null;
+        prevDelta = version.PTH_DELTA ?? null;
     } catch {}
+}
+
+let currentBuild = prevBuild;
+let currentDelta = prevDelta;
+
+// if we're in retail mode, don't make a new timestamp.
+let savedTimestamp = null;
+if (fs.existsSync(versionHeaderDir)) {
+  const version = JSON.parse(fs.readFileSync(versionHeaderDir, "utf8"));
+  savedTimestamp = version.PTH_TIMESTAMP ?? null;
 }
 
 const now = new Date();
@@ -88,50 +86,47 @@ const generateTimestamp =
     String(now.getHours()).padStart(2, "0") +
     String(now.getMinutes()).padStart(2, "0");
 
-let timestamp;
-if (isDebug) {
-    timestamp = generateTimestamp;
-} else {
-    timestamp = savedTimestamp ?? generateTimestamp;
-}
-
-const privateBuildEnv = process.env.WhdPrivateBuild;
-const deltaEnv = process.env.WhdIsDeltaEnabled;
-
-if (bot.debug_mode) {
-    if (privateBuild) console.debug(`\x1b[36m[INFO]\x1b[0m Panther: Private build enabled (${privateBuildEnv ? "WhdPrivateBuild=yes" : "default"})`);
-    if (deltaEnabled) console.debug(`\x1b[36m[INFO]\x1b[0m Panther: Delta numbering enabled (${deltaEnv ? `WhdIsDeltaEnabled=${deltaEnv}` : "default"})`);
+// log if private build or delta numbering is ON
+if (verboseEnabled) {
+  if (isPrivate) console.log("Panther:", `Private build enabled (${process.env.WHD_PRIVATE_BUILD ? "WHD_PRIVATE_BUILD=yes" : "default"})`);
+  if (canHasDelta) console.log("Panther:", `Delta numbering enabled (${process.env.WHD_IS_DELTA_ENABLED ? "WHD_IS_DELTA_ENABLED=yes" : "default"})`);
 }
 
 if (isDebug) {
     try {
-        if (deltaEnabled) {
+        if (canHasDelta) {
             currentDelta++;
         } else {
-            currentIncrementalNumber++;
+            currentBuild++;
             currentDelta = 0;
         }
-        console.log(`\x1b[36m[INFO]\x1b[0m Panther: Loading Orchid ${currentIncrementalNumber}.${currentDelta} (${lab}.${timestamp})`)
     } catch (err) {
-        console.error(`\x1b[31m[ERROR]\x1b[0m Panther: Failed to increment build tag`);
-        console.error(`\x1b[31m[ERROR]\x1b[0m` + err);
+        log('error', `Panther: Failed to increment build tag`);
+        log('error', err);
     }
 }
 
-const buildtag = `${major}.${minor}.${currentIncrementalNumber}.${currentDelta}.${id}.${lab}.${timestamp}`;
+let timestamp;
+if (isDebug) {
+    timestamp = generateTimestamp;
+    if (verboseEnabled) console.log("Panther:", `Build tag '${major}.${minor}.${currentBuild}.${currentDelta} (${lab}.${timestamp})' has been loaded.`)
+} else {
+    timestamp = savedTimestamp ?? generateTimestamp;
+    if (verboseEnabled) console.log("Panther:", `Retail tag '${major}.${minor}.${currentBuild}.${currentDelta} (${lab}.${timestamp})' has been loaded.`)
+}
+
+const buildtag = `${major}.${minor}.${currentBuild}.${currentDelta}.${id}.${lab}.${timestamp}`;
 
 const version = {
-    MAJOR: major,
-    MINOR: minor,
-    BUILD: currentIncrementalNumber,
-    DELTA: currentDelta,
-    ID: id,
-    LAB: lab,
-    TIMESTAMP: timestamp,
-    VERSION: buildtag
+    PTH_MAJOR: major,
+    PTH_MINOR: minor,
+    PTH_BUILD: currentBuild,
+    PTH_DELTA: currentDelta,
+    PTH_ID: id,
+    PTH_LAB: lab,
+    PTH_TIMESTAMP: timestamp,
+    PTH_VERSION: buildtag
 };
 
-fs.writeFileSync(
-    versionFile,
-    JSON.stringify(version, null, 4)
-);
+fs.writeFileSync(versionHeaderDir, JSON.stringify(version, null, 4));
+if (verboseEnabled) console.log("Panther:", `Aforementioned build tag has been written to ${versionHeaderDir}.`);

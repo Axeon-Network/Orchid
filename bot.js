@@ -1,45 +1,55 @@
+const fs = require("fs");
+
+const core = {name: "Axeon Orchid", shortName: "Orchid", devStage: "Beta 2", idPrefix: "b2"};
+global.core = core;
+
+const bot = require("./config/config.json");
+global.bot = bot;
+
 const args = process.argv.slice(2);
 
-const hasPlatformArgs =
-    args.includes("--discord") ||
-    args.includes("--stoat") ||
-    args.includes("--fluxer");
-
-const discord = hasPlatformArgs ? args.includes("--discord") : true;
-const stoat = hasPlatformArgs ? args.includes("--stoat") : true;
-const fluxer = args.includes("--fluxer");
-
-const core = require("./config/core.json");
-const bot = require("./config/config.json");
-
-if (bot.show_ascii) {
-  console.log(`                #######                 `);
-  console.log(`               #########                `);
-  console.log(`               #########                `);
-  console.log(`         ###### ####### ######          `);
-  console.log(`         ######## ### #########         `);
-  console.log(`         ##########  ##########         `);
-  console.log(`          ########   *#######:          `);
-  console.log(`                 ## ###                 `);
-  console.log(`             ###### ######              `);
-  console.log(`           ######## #########           `);
-  console.log(`          ########   ########           `);
-  console.log(`           ######   . ######            `);
+if (args.includes("--help")) {
+  console.log(`Usage: node bot.js [--log] [--discord] [--stoat]`);
   console.log(``);
+  console.log(`--help           Display this command`);
+  console.log(`--log            Start the bot but write console logs to file`);
+  console.log(`--discord        Start the Discord bot ONLY`);
+  console.log(`--stoat          Start the Stoat bot ONLY`);
+  process.exit(0);
 }
 
+const hasPlatformArgs = args.includes("--discord") || args.includes("--stoat");
+const discord = hasPlatformArgs ? args.includes("--discord") : true;
+const stoat = hasPlatformArgs ? args.includes("--stoat") : true;
+
 process.on('uncaughtException', function (err) {
-  console.error('\x1b[31m[ERROR]\x1b[0m Uncaught Exception!!!');
-  console.error('\x1b[31m[ERROR]\x1b[0m ' + err.stack);
+  console.error('Uncaught Exception!!!');
+  console.error(err.stack);
 });
- 
-const panther = require("./components/panther");
-const { MAJOR, MINOR } = require("./components/version.json");
 
-const devStage = core.dev_stage;
-const devStageLabel = devStage ? `(${core.dev_stage})` : '';
+const { isDebug } = require("./components/panther");
+global.isDebug = isDebug;
 
-const { Client: DiscordClient, GatewayIntentBits, PermissionFlagsBits, Partials, ActivityType, Collection } = require('discord.js');
+let logger;
+let ascii;
+let log;
+try {
+  logger = require("./components/logger");
+  ({ ascii, log, logToFile } = logger);
+  global.log = log;
+} catch {
+  console.error("/components/logger.js not found, falling back to basic console logging");
+  ascii = () => {};
+  log = () => {};
+  logToFile = () => {};
+}
+global.logger = logger;
+
+if (args.includes("--log")) logToFile();
+ascii();
+log('debug', "Ello!~");
+
+const { Client: DiscordClient, GatewayIntentBits, Partials, MessageFlags, Collection, PermissionFlagsBits } = require('discord.js');
 const { Client: StoatClient } = require("stoat.js");
 
 const client = new DiscordClient({
@@ -54,26 +64,28 @@ const client = new DiscordClient({
 const stoatClient = new StoatClient();
 
 const login = require("./config/auth.json");
+if (discord) client.login(login.discord_token);
+if (stoat) stoatClient.loginBot(login.stoat_token);
+log('debug', "Client(s) initialized")
 
-if (discord) {client.login(login.discord_token)};
-if (stoat) {stoatClient.loginBot(login.stoat_token)};
+const { missingPermission, missingArgument, technicalErr } = require("./components/errorHandler");
+global.missingPermission = missingPermission;
+global.missingArgument = missingArgument;
+global.technicalErr = technicalErr;
 
-const fs = require("fs");
 const db = {};
-
 db.commands = new Collection();
 
 const commandFiles = fs.readdirSync("./cmds").filter(file => file.endsWith(".js"));
 for (const file of commandFiles) {
-    const command = require(`./cmds/${file}`);
-    db.commands.set(command.meta.name, command);
+  const command = require(`./cmds/${file}`);
+  db.commands.set(command.meta.name, command);
 }
+log('debug', `Loaded ${commandFiles?.length ?? NaN} commands`)
 
 const Enmap = require('enmap').default;
 
-db.global = new Enmap({
-  name: "global"
-});
+db.global = new Enmap({name: "global"});
 if (!db.global.has("moderators")) {db.global.set("moderators", [])};
 
 db.settings = new Enmap({
@@ -88,18 +100,36 @@ db.settings = new Enmap({
     honeypotChannel: ""
   }
 });
+log('debug', "Loaded database");
 
-client.once('clientReady', () => { 	
-  console.log(`\x1b[36m[INFO]\x1b[0m Connected to Discord: ${client.user.tag} (ID: ${client.user.id})`);
-  client.user.setStatus(bot.indicator || `online`);
-  client.user.setActivity(bot.status || `v${MAJOR}.${MINOR} ${devStageLabel}`, { type: ActivityType.Playing });
+let status;
+if (Math.random() < 0.01) {
+  status = "connocting poopies togethor!";
+  log('debug', `You just caught an easter egg!`)
+} else {
+  status = "connecting people together!";
+};
+
+client.once('clientReady', () => {
+  log('info', `Connected to Discord: ${client.user.tag} (ID: ${client.user.id})`);
+  if (!logger) console.log('Discord connected');
+  client.user.setPresence({activities: [{ name: bot.status || status }], status: bot.indicator || 'online'});
 });
 
-stoatClient.on('ready', () => {
-  console.log(`\x1b[36m[INFO]\x1b[0m Connected to Stoat: ${stoatClient.user.username}#${stoatClient.user.discriminator} (ID: ${stoatClient.user.id})`);
-})
-
-console.log(`\x1b[36m[INFO]\x1b[0m Press Ctrl+C in this terminal window to shut down.`);
+stoatClient.once('ready', () => {
+  log('info', `Connected to Stoat: ${stoatClient.user.username}#${stoatClient.user.discriminator} (ID: ${stoatClient.user.id})`);
+  if (!logger) console.log('Stoat connected')
+  function setPresence(text, presence) {
+    stoatClient.api.patch("/users/@me", {status: {text, presence}});
+  }
+  const indicator = { // gotta love differences between two platforms sometimes
+    online: 'Online',
+    idle: 'Idle',
+    dnd: 'Busy',
+    invisible: 'Invisible'
+  }
+  setPresence(bot.status || status, indicator[bot.indicator] || 'Online');
+});
 
 function hexToInt(hex) { // discord are we serious-
   if (!hex || typeof hex !== "string") return 0;
@@ -112,33 +142,12 @@ const honeypot = require("./components/honeypot");
 const slashCommands = require("./components/slashCommands");
 
 client.on("messageCreate", async (message) => {
-  const context = {
+  const ctx = {
     platform: "discord",
 
-    reply: (content) => {
-      if (content?.embeds) {
-        for (const embed of content.embeds) {
-          if (embed.color && typeof embed.color === "string") {
-            embed.color = hexToInt(embed.color);
-          } else if (!embed.color) {
-            embed.color = hexToInt(bot.color);
-          }
-        }
-      }
-      return message.channel.send(content);
-    },
-    dm: (content) => {
-      if (content?.embeds) {
-        for (const embed of content.embeds) {
-          if (embed.color && typeof embed.color === "string") {
-            embed.color = hexToInt(embed.color);
-          } else if (!embed.color) {
-            embed.color = hexToInt(bot.color);
-          }
-        }
-      }
-      return message.author.send(content);
-    },
+    reply: (content) => message.channel.send(content),
+    dm: (content) => message.author.send(content),
+    dmUser: async (user, content) => await user.send(content),
     edit: (content) => message.edit(content),
     member: await message.guild.members.fetch(message.author.id),
     user: message.author,
@@ -150,17 +159,27 @@ client.on("messageCreate", async (message) => {
     attachments: message.attachments,
     mentions: message.mentions,
     content: message.content,
+    react: (emoji) => message.react(emoji),
     delete: () => message.delete(),
 
-    admin: () => message.member.permissions.has(PermissionFlagsBits.Administrator) || message.member.permissions.has(PermissionFlagsBits.ManageGuild),
+    isOwner: message.author.id === login.discord_ownerID,
+    isGlobalMod: message.author.id === login.discord_ownerID || db.global.get("moderators")?.[message.author.id] === true,
+    isAdmin: message.member.permissions.has(PermissionFlagsBits.Administrator) || message.member.permissions.has(PermissionFlagsBits.ManageGuild),
+
     getChannel: (arg) => message.options?.getChannel("channel") || message.guild.channels.cache.get(arg?.replace(/[<#>]/g, "")),
     getUser: async (arg) => message.mentions.users.first() || await client.users.fetch(arg).catch(() => null),
 
-    color: hexToInt(bot.color),
-    author: (embed, author) => {embed.author = {name: author.name, icon_url: author.icon_url}},
-    fields: (embed, fields) => {embed.fields = fields},
-    footer: (embed, footer) => {embed.footer = {text: footer.text, icon: footer.icon_url}},
-    image: (embed, url) => {embed.image = {url}},
+    embed: (data = {}) => {
+      const embed = { ...data };
+
+      if (embed.color && typeof embed.color === "string") {
+        embed.color = hexToInt(embed.color);
+      } else if (!embed.color) {
+        embed.color = hexToInt(bot.color);
+      };
+
+      return embed;
+    },
     fetchReply: async (message) => { 
       if (!message.reference?.messageId) return null; 
       const replied = await message.channel.messages.fetch(message.reference.messageId); 
@@ -179,39 +198,18 @@ client.on("messageCreate", async (message) => {
     raw: {client, message}
   };
 
-  if (await commands.handle(client, db, message, context)) return;
-  if (await globalChat.handle(client, db, message, context)) return;
-  if (await honeypot.handle(client, db, message, context)) return;
+  if (await commands.handle(client, db, message, ctx)) return;
+  if (await globalChat.handle(client, db, message, ctx)) return;
+  if (await honeypot.handle(client, db, message, ctx)) return;
 });
 
 client.on("interactionCreate", async (interaction) => {
-  const context = {
+  const ctx = {
     platform: "discord",
 
-    reply: (content) => {
-      if (content?.embeds) {
-        for (const embed of content.embeds) {
-          if (embed.color && typeof embed.color === "string") {
-            embed.color = hexToInt(embed.color);
-          } else if (!embed.color) {
-            embed.color = hexToInt(bot.color);
-          }
-        }
-      }
-      return interaction.reply(content);
-    },
-    edit: (content) => {
-      if (content?.embeds) {
-        for (const embed of content.embeds) {
-          if (embed.color && typeof embed.color === "string") {
-            embed.color = hexToInt(embed.color);
-          } else if (!embed.color) {
-            embed.color = hexToInt(bot.color);
-          }
-        }
-      }
-      return interaction.editReply(content);
-    },
+    reply: (content) => interaction.reply(content),
+    dm: (content) => interaction.reply({...content, flags: MessageFlags.Ephemeral}),
+    edit: (content) => interaction.editReply(content),
     member: await interaction.guild.members.fetch(interaction.user.id),
     user: interaction.user,
     clientUser: client.user,
@@ -222,40 +220,42 @@ client.on("interactionCreate", async (interaction) => {
     content: interaction.commandName,
     options: interaction.options,
 
-    admin: () => interaction.member.permissions.has(PermissionFlagsBits.Administrator) || interaction.member.permissions.has(PermissionFlagsBits.ManageGuild),
+    isOwner: interaction.user.id === login.discord_ownerID,
+    isGlobalMod: interaction.user.id === login.discord_ownerID || db.global.get("moderators")?.[interaction.user.id] === true,
+    isAdmin: interaction.member.permissions.has(PermissionFlagsBits.Administrator) || interaction.member.permissions.has(PermissionFlagsBits.ManageGuild),
+
     getChannel: (arg) => interaction.options?.getChannel("channel") || interaction.guild.channels.cache.get(arg?.replace(/[<#>]/g, "")),
     getUser: async (arg) => interaction.mentions.users.first() || await client.users.fetch(arg).catch(() => null),
 
-    color: hexToInt(bot.color),
-    author: (embed, author) => {embed.author = {name: author.name, icon: author.icon_url}},
-    fields: (embed, fields) => {embed.fields = fields},
-    image: (embed, url) => {embed.image = {url}}
+    embed: (data = {}) => {
+      const embed = { ...data };
+
+      if (embed.color && typeof embed.color === "string") {
+        embed.color = hexToInt(embed.color);
+      } else if (!embed.color) {
+        embed.color = hexToInt(bot.color);
+      }
+
+      return embed;
+    },
+
+    raw: {client, interaction}
   };
 
-  if (await slashCommands.handle(client, db, interaction, context)) return;
+  if (await slashCommands.handle(client, db, interaction, ctx)) return;
 });
 
 stoatClient.on("messageCreate", async (message) => {
-  const context = {
+  const ctx = {
     platform: "stoat",
 
-    reply: (content) => {
-      if (content?.embeds) {
-        for (const embed of content.embeds) {
-          embed.colour = embed.color ?? bot.color;
-          delete embed.color;
-        }
-      }
-    return message.channel.sendMessage(content);
-    },
+    reply: (content) => message.channel.sendMessage(content),
     dm: async (content) => {
       const dm = await message.author.openDM();
-      if (content?.embeds) {
-        for (const embed of content.embeds) {
-          embed.colour = embed.color ?? bot.color;
-          delete embed.color;
-        }
-      }
+      return await dm.sendMessage(content);
+    },
+    dmUser: async (user, content) => {
+      const dm = await user.openDM();
       return await dm.sendMessage(content);
     },
     edit: (content) => message.channel.edit(content),
@@ -269,20 +269,32 @@ stoatClient.on("messageCreate", async (message) => {
     attachments: message.attachments,
     mentions: message.mentioned,
     content: message.content,
+    react: (emoji) => message.react(emoji),
     delete: () => message.delete(),
 
-    admin: () => message.member.permissions.has("ManageServer"),
+    isOwner: () => message.author.id === login.stoat_ownerID,
+    isGlobalMod: () => message.author.id === login.stoat_ownerID || db.global.get("moderators")?.[message.author.id] === true,
+    isAdmin: () => message.member.permissions.has("ManageServer"),
+
     getChannel: (arg) => {
       const id = arg?.replace(/[<#>]/g, "");
       return message.server.channels.find(channel => channel.id === id);
     },
     getUser: async (arg) => await stoatClient.users.fetch(arg?.replace(/[<@>]/g, "")).catch(() => null),
 
-    color: bot.color,
-    author: (embed, author) => {embed.title = author.name},
-    fields: (embed, fields) => {embed.description = [embed.description, fields.map(f => `**${f.name}**\n${f.value}`).join("\n\n")].filter(Boolean).join("\n\n")},
-    footer: (embed, footer) => {embed.description = (embed.description ?? "") + `\n\n` + footer.text},
-    image: (embed, url) => {embed.image = {url}},
+    embed: (data = {}) => {
+      const embed = { ...data };
+
+      embed.colour = embed.color ?? bot.color;
+      delete embed.color;
+
+      if (embed.author) {embed.title = embed.author.name; delete embed.author};
+      if (embed.fields) {embed.description = [embed.description, embed.fields.map(f => `**${f.name}**\n${f.value}`).join("\n\n")].filter(Boolean).join("\n\n"); delete embed.fields};
+      if (embed.footer) {embed.description = (embed.description ?? "") + `\n\n` + embed.footer.text; delete embed.footer};
+      if (embed.image) {embed.image = { url: embed.image.url }};
+
+      return embed;
+    },
     fetchReply: async (message) => { 
       if (!message.replyIds?.length) return null; 
       const replied = await stoatClient.messages.fetch( message.channel.id, message.replyIds[0] ); 
@@ -301,9 +313,9 @@ stoatClient.on("messageCreate", async (message) => {
     raw: {stoatClient, message}
   };
 
-  if (await commands.handle(client, db, message, context)) return;
-  if (await globalChat.handle(client, db, message, context)) return;
-  if (await honeypot.handle(client, db, message, context)) return;
+  if (await commands.handle(client, db, message, ctx)) return;
+  if (await globalChat.handle(client, db, message, ctx)) return;
+  if (await honeypot.handle(client, db, message, ctx)) return;
 });
 
 function getBridgeChannels(setting) {
@@ -316,15 +328,22 @@ function getBridgeChannels(setting) {
     const channel = guild.channels.cache.get(channelId);
     if (!channel) continue;
 
-
     destinations.push({
       platform: "discord",
       guild,
       channel,
       send: (content) => channel.send(content),
-      author: (embed, author) => {embed.author = author},
-      footer: (embed, footer) => {embed.footer = footer},
-      fields: (embed, fields) => {embed.fields = fields},
+      embed: (data = {}) => {
+        const embed = { ...data };
+
+        if (embed.color && typeof embed.color === "string") {
+          embed.color = hexToInt(embed.color);
+        } else if (!embed.color) {
+          embed.color = hexToInt(bot.color);
+        };
+
+        return embed;
+      },
       fetch: async (message) => {
         const id = message.reference?.messageId;
         if (!id) return null;
@@ -345,15 +364,28 @@ function getBridgeChannels(setting) {
       guild: server,
       channel,
       send: (content) => channel.sendMessage(content),
-      author: (embed, author) => {
-        const [title, id] = author.name.split(" | ");
-        embed.title = title;
-        if (id) {embed.description = (embed.description ?? "") + `\nID: ${id}`}
+      embed: (data = {}) => {
+        const embed = { ...data };
+
+        embed.colour = embed.color ?? bot.color;
+        delete embed.color;
+
+        if (embed.footer) {embed.description = (embed.description ?? "") + `\n\n*Sent from ${embed.footer.text}*`; delete embed.footer};
+        if (embed.author) {        
+          const [title, id] = embed.author.name.split(" | ");
+          embed.title = title;
+          if (id) {embed.description = (embed.description ?? "") + `\nID: ${id}`};
+          delete embed.author;
+        };
+        if (embed.fields) {
+          embed.description = [embed.description, embed.fields.map(f => `**${f.name}**\n${f.value}`).join("\n\n")]
+          .filter(Boolean).join("\n\n"); 
+          delete embed.fields
+        };
+        if (embed.image) {embed.image = { url: embed.image.url }};
+
+      return embed;
       },
-      footer: (embed, footer) => {embed.description = (embed.description ?? "") + `\n\n*Sent from ${footer.text}*`},
-      fields: (embed, fields) => {embed.description = [
-        embed.description, fields.map(f => `**${f.name}**\n${f.value}`).join("\n\n")
-      ].filter(Boolean).join("\n\n")},
       fetch: async (message) => {
         const id = message.replyIds?.[0];
         if (!id) return null;
@@ -366,10 +398,4 @@ function getBridgeChannels(setting) {
 }
 db.getBridgeChannels = getBridgeChannels;
 
-process.on("exit", () => {
-  if (fluxer) {
-    console.warn(`\x1b[33m[WARN]\x1b[0m Fluxer support for Axeon Orchid will be only implemented in Beta 2.`)
-  } else {
-    console.error(`\x1b[31m[ERROR]\x1b[0m A fatal error has occurred. Process halted.`)
-  }
-});
+log('info', `Press Ctrl+C in this terminal window to shut down.`);

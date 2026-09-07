@@ -1,32 +1,21 @@
 const meta = {
     name: "eval",
     description: "Run code using the bot",
-    usage: "eval <code>",
+    category: "general",
+    usage: "<code>",
     ownerOnly: true
 };
 exports.meta = meta;
 
-exports.execute = async (client, db, context, args) => {
+exports.execute = async (client, db, ctx, args) => {
     try {
         const code = args.join(" ");
         let evaled = eval(code);
+        if (typeof evaled !== "string") evaled = require("util").inspect(evaled);
 
-        if (typeof evaled !== "string")
-            evaled = require("util").inspect(evaled);
-
-        context.reply({embeds: [{
-                color: "#00ff00",
-                title: `✅ Result`,
-                description: `\`\`\`xl\n${clean(evaled)}\n\`\`\``,
-            }]
-        });
+        ctx.reply({embeds: [ctx.embed({color: "#00ff00", title: `✅ Result`, description: `\`\`\`xl\n${clean(evaled)}\n\`\`\``})]});
     } catch (err) {
-        context.reply({embeds: [{
-                color: "#ff0000",
-                title: `❌ Error!`,
-                description: `\`\`\`xl\n${clean(err)}\n\`\`\``,
-            }]
-        });
+        ctx.reply({embeds: [ctx.embed({color: "#ff0000", title: `❌ Error!`, description: `\`\`\`xl\n${clean(err)}\n\`\`\``})]});
     };
 
     function clean(text) {

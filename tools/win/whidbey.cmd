@@ -52,7 +52,7 @@ title Axeon Whidbey ~ och !status! from DevLab !lab! inside %cd%
 doskey whelp="%WhdScript%" show_help
 doskey npminst=npm install
 doskey och="%WhdScript%" run_och $*
-doskey dply=node tools/deploycmds.js
+doskey dply=node tools/deploycmds.js $*
 doskey track=git add .
 doskey commit="%WhdScript%" run_commit $*
 doskey pull=git pull
@@ -68,8 +68,6 @@ if /i "!flag!"=="-dc" (
     node bot.js --discord
 ) else if /i "!flag!"=="-st" (
     node bot.js --stoat
-) else if /i "!flag!"=="-fx" (
-    node bot.js --fluxer
 ) else (
     set "raw_args=%*"
     set "forward_args=!raw_args:*run_och=!"
@@ -99,8 +97,7 @@ echo           npminst              - install missing npm packages
 echo           och                  - run Orchid normally
 echo           och -dc              - run Orchid (Discord only)
 echo           och -st              - run Orchid (Stoat only)
-echo           och -fx              - run Orchid (Fluxer only)
-echo           dply                 - deploy commands to discord as slash commands
+echo           dply "clientID"      - deploy commands to discord as slash commands
 echo           track                - track ALL files for git
 echo           commit "arg"         - commit current work.
 echo           commit "arg" "arg2"  - same as commit but "arg2" is an extended description

@@ -1,27 +1,39 @@
-const { missingPermission, technicalErr } = require("./errorHandler");
+exports.get = function (commandFiles) {
+  const commands = [];
+  
+  const { SlashCommandBuilder } = require("discord.js");
+  for (const file of commandFiles) {
+    const command = require(`../cmds/${file}`);
 
-exports.handle = async function (client, db, interaction, context) {
+    if (command.meta.ownerOnly || command.meta.globalOnly) continue;
+
+    const data = command.data ?? new SlashCommandBuilder()
+      .setName(command.meta.name)
+      .setDescription(command.meta.description);
+
+    commands.push(data.toJSON());
+  }
+  return commands;
+}
+
+exports.handle = async function (client, db, interaction, ctx) {
   if (!interaction.isChatInputCommand()) return;
 
-  const command = interaction.commandName;
-
   try {
-    const commandFile = db.commands.get(command);
+    const commandFile = db.commands.get(interaction.commandName);
 
-    const auth = require("../config/auth.json");
-    const ownerID = [auth.discord_ownerID, auth.stoat_ownerID].filter(Boolean);
     if (
-      (commandFile.meta.adminOnly && !(context.admin))
-    ) return missingPermission(context, commandFile.meta);
-    if (
-      (commandFile.meta.ownerOnly && !ownerID.includes(context.user.id))
-    ) return missingPermission(context, commandFile.meta);
+      (commandFile.meta.ownerOnly && !ctx.isOwner) ||
+      (commandFile.meta.globalOnly && !ctx.isGlobalMod) ||
+      (commandFile.meta.adminOnly && !ctx.isAdmin)
+    ) return missingPermission(ctx, commandFile.meta);
 
-    await commandFile.execute(client, db, context, []);
-    console.log(`\x1b[36m[INFO]\x1b[0m ${context.sender} (${context.guild.name}, ${context.platform}) ran ${command}`);
+    await commandFile.execute(client, db, ctx, []);
+    log('info', `${ctx.sender} (${ctx.guild.name}, ${ctx.platform}) ran ${interaction.commandName}`);
   } catch (err) {
-    console.log(`\x1b[31m[ERROR]\x1b[0m Failed to process ${command}, ran by ${context.sender} (${context.guild.name}, ${context.platform}).`);
-    technicalErr(client, context, null, err); // this was a fucking PAIN it took me 5 hours to get working
+    log('error', `Couldn't process ${interaction.commandName} as requested by ${ctx.sender} (${ctx.guild.name}, ${ctx.platform})`);
+    technicalErr(client, ctx, null, err); // this was a fucking PAIN it took me 5 hours to get working
   }
+  log('debug', 'Processed slash command')
   return true;
 }

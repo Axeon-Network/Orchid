@@ -1,10 +1,10 @@
 {
-    "MAJOR": 0,
-    "MINOR": 2,
-    "BUILD": 1500,
-    "DELTA": 0,
-    "ID": "b1fre",
-    "LAB": "main",
-    "TIMESTAMP": "260807-1123",
-    "VERSION": "0.2.1500.0.b1fre.main.260807-1123"
+    "PTH_MAJOR": 0,
+    "PTH_MINOR": 3,
+    "PTH_BUILD": 1700,
+    "PTH_DELTA": 0,
+    "PTH_ID": "b2chk",
+    "PTH_LAB": "main",
+    "PTH_TIMESTAMP": "260907-0936",
+    "PTH_VERSION": "0.3.1700.0.b2chk.main.260907-0936"
 }

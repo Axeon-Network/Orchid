@@ -1,44 +1,50 @@
 const meta = {
   name: "help",
   description: "Display list of commands",
-  usage: "help"
+  category: "general"
 };
 exports.meta = meta;
 
-const bot = require("../config/config.json");
-const auth = require("../config/auth.json");
-
-exports.execute = async (client, db, context) => {
-  const config = db.settings.get(context.guild.id);
-
-  const admin = context.admin;
-  const ownerID = [auth.discord_ownerID, auth.stoat_ownerID].filter(Boolean);
-  const owner = ownerID.includes(context.user.id);
-
-  const fields = [];
+exports.execute = async (client, db, ctx) => {
+  const categories = {};
+  const embeds = [];
 
   for (const command of db.commands.values()) {
+    const category = command.meta.category ?? "Other";
+    if (!categories[category]) categories[category] = [];
 
-    const meta = command.meta;
-    if (!meta) continue;
+    if (command.meta.ownerOnly && !ctx.isOwner) continue;
+    if (command.meta.globalOnly && !ctx.isGlobalMod) continue;
+    if (command.meta.adminOnly && !ctx.isAdmin) continue;
 
-    if (meta.adminOnly && !admin) continue;
-    if (meta.ownerOnly && !owner) continue;
+    categories[category].push(command);
+  };
 
-    fields.push({
-      name: meta.name,
-      value: `${meta.description}\n**Usage:** \`${meta.usage}\``,
-      inline: true
-    });
-  }
-
-  let list = {
+  const main = ctx.embed({
     title: `❔ Help`,
-    description: `My prefix on **${context.guild.name}** is **${config.prefix}** \nMy global prefix is **${bot.prefix}** \n[] = Optional arguments, <> = Required arguments`
-  }
-  context.fields(list, fields);
-  context.dm({embeds: [list]});
-  
-  let embed = {title: `✉️ You've got mail!`}
-  context.reply({embeds: [embed]})
-}
+    description: `My prefix on **${ctx.guild.name}** is **${db.settings.get(ctx.guild.id, "prefix")}**\n` +
+                 `My global prefix is **${bot.prefix}**\n` +
+                 `<> = Required arguments, [] = Optional arguments`
+  });
+  embeds.push(main);
+
+  for (const [category, commands] of Object.entries(categories)) {
+    const categoryNames = {
+      general: "🤖 General",
+      management: "🛠️ Management",
+    };
+
+    const list = ctx.embed({
+      title: categoryNames[category] ?? category,
+      fields: commands.map(command => ({
+        name: command.meta.name,
+        value: `${command.meta.description}\n**Usage:** \`${command.meta.name}${command?.meta?.usage ? ` ${command.meta.usage}` : ''}\``,
+        inline: true
+      }))
+    });
+    embeds.push(list);
+  };
+
+  ctx.dm({embeds});
+  try {ctx.react('✉️')} catch {};
+};
