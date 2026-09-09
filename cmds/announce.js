@@ -18,7 +18,7 @@ exports.execute = async (client, db, ctx, args) => {
     for (const destination of destinations) {
       let embed = {
         author: {
-          name: `Global announcement from ${ctx.user.displayName}`,
+          name: `Global announcement from ${ctx.user?.displayName ?? ctx.user?.globalName ?? ctx.user.username}`,
 	        icon_url: ctx.user.displayAvatarURL?.() ?? ctx.user?.avatarURL ?? undefined
         },
         description: text,

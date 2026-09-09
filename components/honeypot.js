@@ -6,12 +6,10 @@ function defineUserTypes(ctx, member) {
 }
 
 exports.handle = async function (client, db, message, ctx) {
-  log('debug', `Honeypot called`);
-
   if (ctx.user.id === ctx.clientUser.id && !ctx.guild) return; // the bot on its way to find a mystery honeypot inside stoat dms
   
   const honeypotChannel = db.settings.get(ctx.guild.id, "honeypotChannel");
-  if (!honeypotChannel || ctx.channel.id !== honeypotChannel) return log('debug', `Honeypot: ${ctx.channel.name} (${ctx.guild.name}, ${ctx.platform}) is not a honeypotChannel`); false;
+  if (!honeypotChannel || ctx.channel.id !== honeypotChannel) return false;
 
   const privilegedUserType = defineUserTypes(ctx, ctx.member);
   if (privilegedUserType) return log('warn', `Honeypot: Ignoring ${privilegedUserType} ${ctx.sender} (${ctx.guild.name}, ${ctx.platform})`);
@@ -33,7 +31,7 @@ exports.handle = async function (client, db, message, ctx) {
   }
 
   const messageContent = [
-    `> *${ctx.member.displayName} • ${sentAt}*`,
+    `> *${ctx.user?.displayName ?? ctx.user?.globalName ?? ctx.user.username} • ${sentAt}*`,
     "> ", ...lines.map(line => `> ${line}`)
   ].join("\n");
   log('debug', `Honeypot: Caught message sent by ${ctx.sender} (${ctx.channel.name}, ${ctx.guild.name}, ${ctx.platform})`);

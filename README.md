@@ -3,7 +3,7 @@
 
 <span><h1><img src="https://axeon-network.github.io/media/etc/orchid.png" style="width:5%;"> Orchid</h1></span>
 Making the Axeon Network a ...network!\
-Cross-platform bot bridging Discord, Stoat, and (soon) Fluxer built specifically for the Axeon Network.
+Cross-platform bot bridging Discord, Stoat, and Fluxer built specifically for the Axeon Network.
 
 Currently in Beta, current features include cross-server chatting and other utility features for server management (such as sending announcements to all servers or an anti-scam honeypot feature). More features planned soon.
 
@@ -16,7 +16,7 @@ You'll then want to modify `auth.json` in the `config` directory. This is where 
 Optionally you may also modify `config.json` which lets you change various bot-wide settings.
 
 Once ready, start the bot using `run.bat` (Windows) or `./run.sh` (macOS/Linux).\
-By default this currently starts both the Discord and Stoat bots, but you can pass either the `--discord` or `--stoat` command-line arguments in the terminal so you can start either only the Discord or the Stoat bot.
+By default this currently starts the Discord, Stoat and Fluxer bots all at the same time, but you can pass either the `--discord`, `--stoat` or `--fluxer` command-line arguments in the terminal so you can start only one of the bots.
 
 # Contributing & Support
 If you find any issues or just have any suggestion, feel free to open a new issue over on the [Issues page](https://github.com/Axeon-Network/Orchid/issues).\

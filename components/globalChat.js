@@ -1,13 +1,12 @@
 exports.handle = async function (client, db, message, ctx) {
   if (!ctx.guild) return;
   if (message.author.bot) return;
-  log('debug', `GlobalChat called`)
 
   const bans = db.global.get("bans") || {};
   if (bans[ctx.user.id]) return log('warn', `GlobalChat: Ignoring banned user ${ctx.sender}`);
 
   const globalChannel = db.settings.get(ctx.guild.id, "globalChannel");
-  if (!globalChannel || ctx.channel.id !== globalChannel) return log('debug', `GlobalChat: ${ctx.channel.name} (${ctx.guild.name}, ${ctx.platform}) is not a globalChannel`); false;
+  if (!globalChannel || ctx.channel.id !== globalChannel) return false;
   const destinations = db.getBridgeChannels("globalChannel");
   log('debug', `GlobalChat: Channel: ${globalChannel}`)
 
@@ -28,8 +27,8 @@ exports.handle = async function (client, db, message, ctx) {
       }
 
       let embed = {
-        author: {
-          name: `${ctx.user.displayName} (@${ctx.sender}) ${badges.join("")} | ${ctx.user.id}`,
+        author: { // no fluxer for some reason wont fallback to username if no display name is set, so we fallback ourselves
+          name: `${ctx.user?.displayName ?? ctx.user?.globalName ?? ctx.user.username} (@${ctx.sender}) ${badges.join("")} | ${ctx.user.id}`,
           icon_url: ctx.user.displayAvatarURL?.() ?? ctx.user?.avatarURL ?? undefined
         },
         description: message.content,
