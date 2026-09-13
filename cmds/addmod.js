@@ -11,8 +11,7 @@ exports.execute = async (client, db, ctx, args) => {
   const target = await ctx.getUser(args[0]);
   if (!target) return missingArgument("Who are you adding as a global chat moderator?", ctx, meta);
 
-  const auth = require("../config/auth.json");
-  const ownerAccts = [auth.discord_ownerID, auth.stoat_ownerID].filter(Boolean);
+  const ownerAccts = [auth.discord_ownerID, auth.stoat_ownerID, auth.fluxer_ownerID].filter(Boolean);
   if (ownerAccts.includes(target.id)) return ctx.reply({embeds: [ctx.embed({color: "#ff0000", title: `❌ That user is already a bot maintainer!`})]});
 
   const moderator = db.global.get("moderators") || {};
@@ -21,4 +20,5 @@ exports.execute = async (client, db, ctx, args) => {
   db.global.set("moderators", moderator);
 
   ctx.reply({embeds: [ctx.embed({color: "#00ff00", title: `✅ Added ${target.username} to global moderators`})]});
+  log('debug', `${meta.name}: Added ${target.username} to global moderators`);
 }

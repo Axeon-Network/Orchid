@@ -7,8 +7,8 @@ const path = require("path");
 const os = require("os");
 
 // version number config
-const major = 0;
-const minor = 3;
+const major = 1;
+const minor = 0;
 
 console.log(`Axeon Panther Version Tracker Utility Version 5.0 [Build 5400]`);
 console.log(`Copyright (C) 2025-2026 Axeon Network.`);
@@ -49,7 +49,7 @@ if (isPrivate) {
 }
 
 // component identifies and build numbers
-const idPrefix = core.idPrefix ?? "dp";
+const idPrefix = core.idPrefix || "dp";
 const idSuffix = isDebug ? "chk" : "fre";
 const id = `${idPrefix}${idSuffix}`;
 
@@ -101,8 +101,7 @@ if (isDebug) {
             currentDelta = 0;
         }
     } catch (err) {
-        log('error', `Panther: Failed to increment build tag`);
-        log('error', err);
+        console.error("Panther:", `Failed to increment build tag`);
     }
 }
 

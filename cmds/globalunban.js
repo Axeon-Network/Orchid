@@ -14,8 +14,8 @@ exports.execute = async (client, db, ctx, args) => {
   const bans = db.global.get("bans") || {};
   if (!bans[target.id]) return ctx.reply({embeds: [ctx.embed({color: "#ff0000", title: `❌ That user is not banned from the global chat!`})]});
   delete bans[target.id];
-
   db.global.set("bans", bans);
 
   ctx.reply({embeds: [ctx.embed({color: "#00ff00", title: `✅ Unbanned ${target.username} from global chat`})]});
+  log('debug', `${meta.name}: Unbanned ${target.username} from global chat`);
 }

@@ -1,6 +1,6 @@
 const meta = {
   name: "help",
-  description: "Display list of commands",
+  description: "View list of commands",
   category: "general"
 };
 exports.meta = meta;

@@ -17,9 +17,10 @@ exports.missingArgument = function(description, ctx, meta) {
   })]});
 }
 
-exports.technicalErr = function(client, ctx, message, err) {
-  log('error', err.stack);
-  if (!logger) console.error(err.stack);
+exports.technicalErr = function(description, client, ctx, message, err) {
+  log('error', description);
+  log('error', err);
+  if (!logger) console.error(err);
   ctx.reply({embeds: [ctx.embed({
     color: "#ff0000",
     title: `❌ Error!`,

@@ -31,8 +31,7 @@ exports.handle = async function (client, db, interaction, ctx) {
     await commandFile.execute(client, db, ctx, []);
     log('info', `${ctx.sender} (${ctx.guild.name}, ${ctx.platform}) ran ${interaction.commandName}`);
   } catch (err) {
-    log('error', `Couldn't process ${interaction.commandName} as requested by ${ctx.sender} (${ctx.guild.name}, ${ctx.platform})`);
-    technicalErr(client, ctx, null, err); // this was a fucking PAIN it took me 5 hours to get working
+    technicalErr(`Couldn't process ${interaction.commandName} as requested by ${ctx.sender} (${ctx.guild.name}, ${ctx.platform})`, client, ctx, null, err); // this was a fucking PAIN it took me 5 hours to get working
   }
   log('debug', 'Processed slash command')
   return true;

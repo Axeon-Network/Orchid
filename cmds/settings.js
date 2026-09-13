@@ -1,6 +1,6 @@
 const meta = {
   name: "settings",
-  description: "View and change bot settings",
+  description: "View or change bot settings",
   category: "management",
   usage: "[setting] <value/none>"
 };
@@ -57,11 +57,14 @@ exports.execute = async (client, db, ctx, args) => {
 
   try {
     db.settings.set(ctx.guild.id, newValue, setting);
-    return ctx.reply({embeds: [ctx.embed({
+    ctx.reply({embeds: [ctx.embed({
       color: "#00ff00",
       title: `✅ Setting updated`,
-      description: `New setting ${displaySetting(setting, newValue)} applied to \`${setting}\` for **${ctx.guild.name}**`})]});
+      description: `New setting ${displaySetting(setting, newValue)} applied to \`${setting}\` for **${ctx.guild.name}**`})]
+    });
+    log('debug', `Applied new ${setting}: ${displaySetting(setting, newValue)} (${ctx.guild.name}, ${ctx.platform})`);
+    return;
   } catch (err) {
-    return technicalErr(null, ctx, null, err);
+    return technicalErr(`${meta.name}: Couldn't apply ${setting} (${ctx.guild.name}, ${ctx.platform})`, null, ctx, null, err);
   }
 };

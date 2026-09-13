@@ -11,8 +11,7 @@ exports.execute = async (client, db, ctx, args) => {
   const target = await ctx.getUser(args[0]);
   if (!target) return missingArgument("Who are you banning from the global chat?", ctx, meta);
 
-  const auth = require("../config/auth.json");
-  const ownerAccts = [auth.discord_ownerID, auth.stoat_ownerID].filter(Boolean);
+  const ownerAccts = [auth.discord_ownerID, auth.stoat_ownerID, auth.fluxer_ownerID].filter(Boolean);
   if (ownerAccts.includes(target.id)) return ctx.reply({embeds: [ctx.embed({color: "#ff0000", title: `❌ You cannot globally ban the bot maintainer!`})]});
 
   const moderators = db.global.get("moderators") || [];
@@ -36,9 +35,10 @@ exports.execute = async (client, db, ctx, args) => {
   try {
     await ctx.dmUser(target, {embeds: [embed]});
   } catch (err) {
-    log('debug', `GlobalChat: Failed to DM banned user ${target.username}`);
+    log('debug', `${meta.name}: Failed to DM banned user ${target.username}`);
     log('debug', err)
   }
 
   ctx.reply({embeds: [ctx.embed({color: "#00ff00", title: `✅ Banned ${target.username} from global chat`})]});
+  log('debug', `${meta.name}: Banned ${target.username} from global chat`);
 }

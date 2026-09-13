@@ -18,7 +18,7 @@ exports.ascii = function() {
 }
 
 exports.log = function(type, args) {
-  if (type === "debug" && process.env.WHD_BUILD_TYPE !== "chk") return;
+  if (type === "debug" && !isDebug) return;
 
   let label;
   if (type === "warn") {

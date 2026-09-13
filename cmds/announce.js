@@ -18,7 +18,7 @@ exports.execute = async (client, db, ctx, args) => {
     for (const destination of destinations) {
       let embed = {
         author: {
-          name: `Global announcement from ${ctx.user.displayName}`,
+          name: `Global announcement from ${ctx.user?.displayName ?? ctx.user?.globalName ?? ctx.user.username}`,
 	        icon_url: ctx.user.displayAvatarURL?.() ?? ctx.user?.avatarURL ?? undefined
         },
         description: text,
@@ -26,22 +26,25 @@ exports.execute = async (client, db, ctx, args) => {
       };
       
       if (attachment) {
+        log('debug', `${meta.name}: Attachment detected: ${attachment.url}`);
         try {
           if (attachment.contentType?.startsWith("image/")) {
             embed = ({...embed, image: {url: attachment.url}});
           } else {
-            embed = ({...embed, fields: [{name: "Attachment", value: attachment.url}]});
+            embed = ({...embed, fields: [{name: "🖼️ Attachment", value: attachment.url}]});
           }
         } catch (err) {
-          technicalErr(client, ctx, null, err);
+          technicalErr(`${meta.name}: Couldn't read attachment`, client, ctx, null, err);
         }
       }
 
       embed = destination.embed(embed);
       await destination.send({embeds: [embed]});
     }
-    return ctx.reply({embeds: [ctx.embed({color: "#00ff00", title: `✅ Sent global announcement`})]});
+    ctx.reply({embeds: [ctx.embed({color: "#00ff00", title: `✅ Sent global announcement`})]});
+    log('debug', `${meta.name}: Sent global announcement`);
+    return;
   } catch (err) {
-    return technicalErr(client, ctx, null, err);
+    return technicalErr(`${meta.name}: Couldn't send announcement`, client, ctx, null, err);
   }
 }

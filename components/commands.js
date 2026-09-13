@@ -19,8 +19,7 @@ exports.handle = async function (client, db, message, ctx) {
     await commandFile.execute(client, db, ctx, args);
     log('info', `${ctx.sender} (${ctx.guild.name}, ${ctx.platform}) ran ${command}`);
   } catch (err) {
-    log('error', `Couldn't process ${command} as requested by ${ctx.sender} (${ctx.guild.name}, ${ctx.platform})`);
-    technicalErr(client, ctx, message, err);
+    technicalErr(`Couldn't process ${command} as requested by ${ctx.sender} (${ctx.guild.name}, ${ctx.platform})`, client, ctx, message, err);
   }
   log('debug', `Processed message content: ${ctx.content}`)
   return true;

@@ -1,13 +1,12 @@
 exports.handle = async function (client, db, message, ctx) {
   if (!ctx.guild) return;
   if (message.author.bot) return;
-  log('debug', `GlobalChat called`)
 
   const bans = db.global.get("bans") || {};
   if (bans[ctx.user.id]) return log('warn', `GlobalChat: Ignoring banned user ${ctx.sender}`);
 
   const globalChannel = db.settings.get(ctx.guild.id, "globalChannel");
-  if (!globalChannel || ctx.channel.id !== globalChannel) return log('debug', `GlobalChat: ${ctx.channel.name} (${ctx.guild.name}, ${ctx.platform}) is not a globalChannel`); false;
+  if (!globalChannel || ctx.channel.id !== globalChannel) return false;
   const destinations = db.getBridgeChannels("globalChannel");
   log('debug', `GlobalChat: Channel: ${globalChannel}`)
 
@@ -28,8 +27,8 @@ exports.handle = async function (client, db, message, ctx) {
       }
 
       let embed = {
-        author: {
-          name: `${ctx.user.displayName} (@${ctx.sender}) ${badges.join("")} | ${ctx.user.id}`,
+        author: { // no fluxer for some reason wont fallback to username if no display name is set, so we fallback ourselves
+          name: `${ctx.user?.displayName ?? ctx.user?.globalName ?? ctx.user.username} (@${ctx.sender}) ${badges.join("")} | ${ctx.user.id}`,
           icon_url: ctx.user.displayAvatarURL?.() ?? ctx.user?.avatarURL ?? undefined
         },
         description: message.content,
@@ -45,8 +44,7 @@ exports.handle = async function (client, db, message, ctx) {
         try {
           embed = ({...embed, fields: [{name: `RE: ${reply.author}`, value: reply.text.slice(0, 1024)}]});
         } catch (err) {
-          log('error', `GlobalChat: Couldn't process original message`);
-          log('error', err);
+          technicalErr(`GlobalChat: Couldn't process original message`, client, ctx, message, err);
         }
       }
 
@@ -56,11 +54,10 @@ exports.handle = async function (client, db, message, ctx) {
           if (attachment.contentType?.startsWith("image/")) {
             embed = ({...embed, image: {url: attachment.url}});
           } else {
-            embed = ({...embed, fields: [{name: "Attachment", value: attachment.url}]});
+            embed = ({...embed, fields: [{name: "🖼️ Attachment", value: attachment.url}]});
           }
         } catch (err) {
-          log('error', `GlobalChat: Couldn't read attachment`);
-          log('error', err);
+          technicalErr(`GlobalChat: Couldn't read attachment`, client, ctx, message, err);
         }
       }
     
@@ -72,12 +69,10 @@ exports.handle = async function (client, db, message, ctx) {
     try {
       await ctx.delete();
     } catch (err) {
-      log('error', `GlobalChat: Failed to delete original message (${ctx.guild.name}, ${ctx.platform})`);
-      log('error', err);
+      technicalErr(`GlobalChat: Failed to delete original message (${ctx.guild.name}, ${ctx.platform})`, client, ctx, message, err);
     }
   } catch (err) {
-    log('error', `GlobalChat: Couldn't relay message`)
-    technicalErr(client, ctx, message, err);
+    technicalErr(`GlobalChat: Couldn't relay message`, client, ctx, message, err);
   }
 
   return true;

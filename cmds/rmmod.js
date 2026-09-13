@@ -11,8 +11,7 @@ exports.execute = async (client, db, ctx, args) => {
   const target = await ctx.getUser(args[0]);
   if (!target) return missingArgument("Who are you removing from global chat moderators?", ctx, meta);
 
-  const auth = require("../config/auth.json");
-  const ownerAccts = [auth.discord_ownerID, auth.stoat_ownerID].filter(Boolean);
+  const ownerAccts = [auth.discord_ownerID, auth.stoat_ownerID, auth.fluxer_ownerID].filter(Boolean);
   if (ownerAccts.includes(target.id)) return ctx.reply({embeds: [ctx.embed({color: "#ff0000", title: `❌ You cannot remove the bot maintainer from global chat moderators!`})]});
 
   const moderator = db.global.get("moderators") || {};
@@ -21,4 +20,5 @@ exports.execute = async (client, db, ctx, args) => {
   db.global.set("moderators", moderator);
 
   ctx.reply({embeds: [ctx.embed({color: "#00ff00", title: `✅ Removed ${target.username} from global moderators`})]});
+  log('debug', `${meta.name}: Removed ${target.username} from global moderators`);
 }
